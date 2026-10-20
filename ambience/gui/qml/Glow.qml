@@ -29,7 +29,8 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             readonly property bool single: root.colors.length === 1
             readonly property var spot: single ? [0.5, 0.6, 0.72] : root.spots[index]
-            readonly property color c: root.colors[index]
+            property color c: root.colors[index] ?? "black"
+            Behavior on c { ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad } }
             readonly property real cx: root.width * spot[0]
             readonly property real cy: root.height * spot[1]
             // CSS "circle" sizes to the farthest corner; stop percentages are of that

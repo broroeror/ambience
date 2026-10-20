@@ -163,16 +163,18 @@ class Backend(QObject):
             "on": bool(gl.get("on", {}).get("on")) if gl else bool(on), "bri": bri,
             "count": len(lights), "onCount": len(on),
             "meta": (f"Zone · {len(lights)} lights" if kind == "Zone" else f"{len(lights)} lights") + f" · {what}",
-            "glow": self._unique([light_hex(l) for l in on]) or ["#2a2e37"],
+            "glow": self._room_glow(lights),
         }
 
     @staticmethod
-    def _unique(xs, limit=5):
-        out = []
-        for x in xs:
-            if x not in out:
-                out.append(x)
-        return out[:limit]
+    def _room_glow(lights: list[dict]) -> list[str]:
+        """One glow spot per light, in a FIXED order (by name), so a colour change fades
+        spot-to-spot instead of spots appearing and vanishing. A room in one uniform
+        colour collapses to a single centred glow."""
+        hexes = [light_hex(l) for l in sorted(lights, key=_name)][:5] or ["#2a2e37"]
+        rgb = [tuple(int(h[i:i + 2], 16) for i in (1, 3, 5)) for h in hexes]
+        uniform = all(max(abs(a - b) for a, b in zip(c, rgb[0])) < 24 for c in rgb)
+        return hexes[:1] if uniform else hexes
 
     def _room_list(self):
         if not self.state:
@@ -300,5 +302,30 @@ class Backend(QObject):
 
     @Slot(str)
     def recallScene(self, sid: str):
-        if self.state:
-            self.cmd.put("scene", sid, {"recall": {"action": "active"}})
+        """Recall a scene — and show its target state at once. A scene stores exactly what
+        each light becomes, so the app needn't wait ~1 s for the bridge's events (which
+        arrive after the lamps have already changed)."""
+        if not self.state:
+            return
+        scene = self.state.get(sid) or {}
+        group = scene.get("group", {}).get("rid")
+        updates = []
+        for a in scene.get("actions", []):
+            target, act = a.get("target", {}), a.get("action", {})
+            if target.get("rtype") != "light":
+                continue
+            u = {"id": target["rid"], "type": "light", "on": act.get("on", {"on": True})}
+            if "dimming" in act:
+                u["dimming"] = act["dimming"]
+            if act.get("color", {}).get("xy"):
+                u["color"] = {"xy": act["color"]["xy"]}
+                u["color_temperature"] = {"mirek_valid": False}
+            elif act.get("color_temperature", {}).get("mirek"):
+                u["color_temperature"] = {"mirek": act["color_temperature"]["mirek"], "mirek_valid": True}
+            updates.append(u)
+        for s in self.state.scenes_for(group) if group else []:   # this one becomes the active scene
+            updates.append({"id": s["id"], "type": "scene",
+                            "status": {"active": "static" if s["id"] == sid else "inactive"}})
+        if updates:
+            self.state.apply([{"type": "update", "data": updates}])
+        self.cmd.put("scene", sid, {"recall": {"action": "active"}})

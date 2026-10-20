@@ -7,6 +7,10 @@ Item {
     id: wheel
     property color current: "white"
     signal picked(real hue, real saturation)
+    // The marker eases to colours that arrive from elsewhere (phone, scenes), but follows
+    // the finger exactly while you drag.
+    property color shown: current
+    Behavior on shown { enabled: !picker.pressed; ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad } }
 
     readonly property real radius: Math.min(width, height) / 2
     readonly property real cx: width / 2
@@ -42,16 +46,17 @@ Item {
     }
 
     Rectangle {  // marker at the light's current colour
-        readonly property real a: Math.max(0, wheel.current.hsvHue) * 2 * Math.PI
-        readonly property real d: wheel.current.hsvSaturation * (wheel.radius - 6)
+        readonly property real a: Math.max(0, wheel.shown.hsvHue) * 2 * Math.PI
+        readonly property real d: wheel.shown.hsvSaturation * (wheel.radius - 6)
         width: 26; height: 26; radius: 13
         x: wheel.cx + d * Math.cos(a) - width / 2
         y: wheel.cy - d * Math.sin(a) - height / 2
-        color: wheel.current
+        color: wheel.shown
         border.color: "white"; border.width: 3
     }
 
     MouseArea {
+        id: picker
         anchors.fill: parent
         function pick(mx, my) {
             const dx = mx - wheel.cx, dy = wheel.cy - my

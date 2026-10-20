@@ -19,4 +19,7 @@ QtObject {
     readonly property color accentInk: "#1a1205"
     readonly property color ok: "#5fd38d"
     readonly property color glowBase: "#121318"
+    // How long on-screen colours take to settle into a new value: about as long as the
+    // lamps' own fade, so the app glides along instead of snapping (or lagging visibly).
+    readonly property int fadeMs: 700
 }

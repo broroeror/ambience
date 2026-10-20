@@ -105,14 +105,16 @@ Item {
                         delegate: Rectangle {
                             id: tile
                             required property var item
+                            // The light's colour, eased: everything on the tile derives from it,
+                            // so bulb, halo, tint and border all fade together.
+                            property color lit: tile.item.hex
+                            Behavior on lit { ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad } }
                             Layout.fillWidth: true
                             Layout.preferredHeight: 132
                             radius: 16
-                            color: tile.item.on ? Qt.tint(Theme.surface, Qt.rgba(Qt.color(tile.item.hex).r, Qt.color(tile.item.hex).g, Qt.color(tile.item.hex).b, 0.22)) : Theme.surface
+                            color: Qt.tint(Theme.surface, Qt.rgba(tile.lit.r, tile.lit.g, tile.lit.b, 0.22))
                             border.width: 2
-                            border.color: tile.item.selected ? "white"
-                                        : tile.item.on ? Qt.tint(Theme.line, Qt.rgba(Qt.color(tile.item.hex).r, Qt.color(tile.item.hex).g, Qt.color(tile.item.hex).b, 0.4))
-                                        : Theme.line
+                            border.color: tile.item.selected ? "white" : Qt.tint(Theme.line, Qt.rgba(tile.lit.r, tile.lit.g, tile.lit.b, 0.4))
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: backend.selectLight(tile.item.id) }
                             ColumnLayout {
@@ -122,12 +124,13 @@ Item {
                                     Layout.fillWidth: true
                                     Rectangle {   // the bulb
                                         width: 34; height: 34; radius: 17
-                                        color: tile.item.hex
+                                        color: tile.lit
                                         Rectangle {  // soft halo
-                                            visible: tile.item.on
+                                            opacity: tile.item.on ? 1 : 0
+                                            Behavior on opacity { NumberAnimation { duration: Theme.fadeMs } }
                                             anchors.centerIn: parent; z: -1
                                             width: 54; height: 54; radius: 27
-                                            color: Qt.rgba(Qt.color(tile.item.hex).r, Qt.color(tile.item.hex).g, Qt.color(tile.item.hex).b, 0.25)
+                                            color: Qt.rgba(tile.lit.r, tile.lit.g, tile.lit.b, 0.25)
                                         }
                                     }
                                     Item { Layout.fillWidth: true }
