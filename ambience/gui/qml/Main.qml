@@ -10,7 +10,7 @@ ApplicationWindow {
     title: "Ambience"
     color: Theme.ground
 
-    property int page: 0          // 0 home, 1 room
+    property int page: 0          // 0 home, 1 room, 2 scenes
 
     RowLayout {
         anchors.fill: parent
@@ -33,16 +33,17 @@ ApplicationWindow {
                     Label { text: "Ambience"; color: Theme.text; font.pixelSize: 18; font.weight: Font.ExtraBold }
                 }
                 Repeater {
-                    model: [{ label: "Home", ready: true }, { label: "Scenes", ready: false },
-                            { label: "Sync", ready: false }, { label: "Settings", ready: false }]
+                    model: [{ label: "Home", ready: true, page: 0 }, { label: "Scenes", ready: true, page: 2 },
+                            { label: "Sync", ready: false, page: -1 }, { label: "Settings", ready: false, page: -1 }]
                     delegate: Button {
                         id: nav
                         required property var modelData
                         required property int index
                         Layout.fillWidth: true; implicitHeight: 44
                         enabled: modelData.ready
-                        readonly property bool current: index === 0
-                        onClicked: win.page = 0
+                        // the Room page belongs to Home
+                        readonly property bool current: modelData.page === (win.page === 1 ? 0 : win.page)
+                        onClicked: win.page = modelData.page
                         contentItem: RowLayout {
                             Label { text: nav.modelData.label; color: nav.current ? Theme.text : Theme.mutedNav; font.weight: nav.current ? Font.Bold : Font.DemiBold; Layout.fillWidth: true; leftPadding: 4 }
                             Label { visible: !nav.modelData.ready; text: "soon"; color: Theme.muted; font.pixelSize: 11 }
@@ -71,11 +72,12 @@ ApplicationWindow {
 
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: backend.paired ? win.page : 2
+            currentIndex: backend.paired ? win.page : 3
             HomePage {
                 onOpenRoom: (rid) => { backend.openRoom(rid); win.page = 1 }
             }
             RoomPage { onBack: win.page = 0 }
+            ScenesPage {}
             Item {   // not paired yet
                 ColumnLayout {
                     anchors.centerIn: parent; spacing: 10
@@ -84,6 +86,14 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    Rectangle {   // notice toast (e.g. "Added … to …")
+        visible: backend.notice !== "" && backend.error === ""
+        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 20 }
+        width: Math.min(parent.width - 80, noticeLabel.implicitWidth + 32); height: noticeLabel.implicitHeight + 20
+        radius: 12; color: Theme.raised; border.color: Theme.lineStrong
+        Label { id: noticeLabel; anchors.centerIn: parent; text: backend.notice; color: Theme.text }
     }
 
     Rectangle {   // error toast

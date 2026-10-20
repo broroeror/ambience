@@ -7,14 +7,23 @@ sliders respond instantly; the bridge's own event confirms it a moment later.
 from __future__ import annotations
 
 import colorsys
+import os
+import threading
+from pathlib import Path
 
-from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, Qt, QTimer, Signal,
-                            Slot)
+from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, Qt, QTimer, QUrl,
+                            Signal, Slot)
+from PySide6.QtGui import QImage
 
 from ..bridge import store
 from ..bridge.client import Bridge, BridgeError
 from ..bridge.state import CommandQueue, HomeState
 from ..colour import light_hex, palette_hexes, rgb_to_xy
+from ..presets import BY_ID as PRESETS_BY_ID, PRESETS, scene_body
+
+# Your own scene photos live on this computer (the bridge can't store images), so the
+# phone app won't show them.
+PHOTO_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "ambience" / "scene-photos"
 
 QUICK_WHITES = [  # (label, mirek): the classic four, as plain colour temperatures
     ("Relax", 447), ("Read", 346), ("Concentrate", 233), ("Energize", 156),
@@ -74,6 +83,7 @@ class ItemModel(QAbstractListModel):
 class Backend(QObject):
     changed = Signal()
     _stateBumped = Signal()      # emitted on the event thread; queued onto the GUI thread
+    _noticeFromThread = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -84,6 +94,14 @@ class Backend(QObject):
         self.cmd: CommandQueue | None = None
         self._label = ""
         self._rooms, self._lights, self._scenes = ItemModel(self), ItemModel(self), ItemModel(self)
+        self._scene_groups, self._gallery = ItemModel(self), ItemModel(self)
+        self._group_scenes: dict[str, ItemModel] = {}   # one model per room/zone: a change in
+        self._scene_id = ""                             # one strip never resets the others
+        self._notice = ""
+        self._noticeFromThread.connect(self._set_notice)
+        self._noticeTimer = QTimer(self, singleShot=True, interval=4000)
+        self._noticeTimer.timeout.connect(lambda: self._set_notice(""))
+        self.bridge: Bridge | None = None
         self._debounce = QTimer(self, singleShot=True, interval=40)  # batch event bursts
         self._debounce.timeout.connect(self._refresh)
         self._stateBumped.connect(self._debounce.start)
@@ -93,6 +111,7 @@ class Backend(QObject):
             return
         pairing, app_key, _client_key = got
         bridge = Bridge(pairing.host, pairing.cert_sha256, app_key)
+        self.bridge = bridge
         self._label = f"{pairing.host}"
         self.state = HomeState(bridge)
         self.cmd = CommandQueue(bridge, on_error=self._set_error_from_thread)
@@ -109,6 +128,43 @@ class Backend(QObject):
             self._rooms.set(self._room_list())
             self._lights.set(self._light_list())
             self._scenes.set(self._scene_list())
+            groups = self._groups()
+            self._scene_groups.set([{"id": g["id"], "name": _name(g), "kind": "Zone" if g["type"] == "zone" else "Room",
+                                     "count": len(self.state.scenes_for(g["id"]))} for g in groups])
+            for g in groups:
+                self.sceneModelFor(g["id"]).set([self._scene_entry(x) for x in self.state.scenes_for(g["id"])])
+            self._gallery.set([{"id": p.id, "name": p.name, "mood": p.mood, "glow": list(p.colours)} for p in PRESETS])
+        self.changed.emit()
+
+    def _groups(self):
+        return sorted(self.state.of("room"), key=_name) + sorted(self.state.of("zone"), key=_name)
+
+    @Slot(str, result=QObject)
+    def sceneModelFor(self, group_id: str):
+        if group_id not in self._group_scenes:
+            self._group_scenes[group_id] = ItemModel(self)
+        return self._group_scenes[group_id]
+
+    @Property(QObject, constant=True)
+    def sceneGroupsModel(self):
+        return self._scene_groups
+
+    @Property(QObject, constant=True)
+    def galleryModel(self):
+        return self._gallery
+
+    @Property("QVariantList", notify=changed)
+    def groupChoices(self):
+        return [{"id": g["id"], "name": _name(g)} for g in self._groups()] if self.state else []
+
+    @Property(str, notify=changed)
+    def notice(self):
+        return self._notice
+
+    def _set_notice(self, msg: str):
+        self._notice = msg
+        if msg:
+            self._noticeTimer.start()
         self.changed.emit()
 
     @Property(QObject, constant=True)
@@ -179,8 +235,7 @@ class Backend(QObject):
     def _room_list(self):
         if not self.state:
             return []
-        rooms = sorted(self.state.of("room"), key=_name) + sorted(self.state.of("zone"), key=_name)
-        return [self._group_entry(g) for g in rooms]
+        return [self._group_entry(g) for g in self._groups()]
 
     @Property(str, notify=changed)
     def summary(self):
@@ -233,13 +288,86 @@ class Backend(QObject):
     def _scene_list(self):
         if not self.state or not self._room_id:
             return []
-        out = []
-        for s in self.state.scenes_for(self._room_id):
-            pal = palette_hexes(s)
-            out.append({"id": s["id"], "name": _name(s), "glow": pal or ["#ffb547"],
-                        "dynamic": len(pal) > 1,
-                        "active": (s.get("status") or {}).get("active") not in (None, "inactive")})
-        return out
+        return [self._scene_entry(s) for s in self.state.scenes_for(self._room_id)]
+
+    def _scene_entry(self, s: dict) -> dict:
+        pal = palette_hexes(s)
+        status = (s.get("status") or {}).get("active") or "inactive"
+        bris = [a["action"]["dimming"]["brightness"] for a in s.get("actions", [])
+                if a.get("action", {}).get("dimming", {}).get("brightness") is not None]
+        group = self.state.get(s.get("group", {}).get("rid", "")) or {}
+        photo = PHOTO_DIR / f"{s['id']}.jpg"
+        return {
+            "id": s["id"], "name": _name(s), "glow": pal or ["#ffb547"], "groupName": _name(group),
+            "dynamic": len(pal) > 1, "active": status != "inactive", "playing": status,
+            "speed": float(s.get("speed", 0.6)), "brightness": round(sum(bris) / len(bris)) if bris else 100,
+            "selected": s["id"] == self._scene_id,
+            # the mtime in the URL makes QML reload a replaced photo instead of using its cache
+            "photo": QUrl.fromLocalFile(str(photo)).toString() + f"?v={int(photo.stat().st_mtime)}"
+                     if photo.exists() else "",
+        }
+
+    # --- scenes ------------------------------------------------------------------------
+    @Slot(str)
+    def selectScene(self, sid: str):
+        self._scene_id = sid
+        self._refresh()
+
+    @Property("QVariantMap", notify=changed)
+    def scene(self):
+        s = self.state.get(self._scene_id) if self.state and self._scene_id else None
+        return self._scene_entry(s) if s else {}
+
+    @Slot(str, bool, float, float)
+    def playScene(self, sid: str, dynamic: bool, speed: float, brightness: float):
+        """Recall a scene static or dynamic (cycling through its palette at `speed`)."""
+        if not self.state:
+            return
+        body: dict = {"recall": {"action": "dynamic_palette" if dynamic else "active",
+                                 "dimming": {"brightness": max(1.0, min(100.0, brightness))}}}
+        if dynamic:   # one PUT: the scene's stored speed + the recall
+            body["speed"] = round(max(0.0, min(1.0, speed)), 3)
+            self.state.apply([{"type": "update", "data": [{"id": sid, "type": "scene", "speed": body["speed"]}]}])
+        self._preview_scene(sid, "dynamic_palette" if dynamic else "static")
+        self.cmd.put("scene", sid, body)
+
+    @Slot(str, float)
+    def setSceneSpeed(self, sid: str, speed: float):
+        self._send("scene", sid, {"speed": round(max(0.0, min(1.0, speed)), 3)})
+
+    @Slot(str, str)
+    def setScenePhoto(self, sid: str, file_url: str):
+        """Copy a picture in as this scene's thumbnail, scaled down to keep it small."""
+        img = QImage(QUrl(file_url).toLocalFile())
+        if img.isNull():
+            self._set_notice("That file isn't a picture Ambience can read.")
+            return
+        if img.width() > 800:
+            img = img.scaledToWidth(800, Qt.SmoothTransformation)
+        PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+        img.save(str(PHOTO_DIR / f"{sid}.jpg"), "JPG", 88)
+        self._refresh()
+
+    @Slot(str)
+    def clearScenePhoto(self, sid: str):
+        (PHOTO_DIR / f"{sid}.jpg").unlink(missing_ok=True)
+        self._refresh()
+
+    @Slot(str, str)
+    def addPreset(self, preset_id: str, group_id: str):
+        """Create a gallery preset as a real scene in a room/zone (network call → thread)."""
+        preset, group = PRESETS_BY_ID.get(preset_id), self.state.get(group_id) if self.state else None
+        if not (preset and group):
+            return
+        lights = self.state.lights_in(group)
+
+        def work():
+            try:
+                self.bridge.post("scene", scene_body(preset, group, lights))
+                self._noticeFromThread.emit(f"Added “{preset.name}” to {_name(group)}")
+            except (OSError, BridgeError) as e:
+                self._set_error_from_thread(f"Couldn't add {preset.name}: {e}")
+        threading.Thread(target=work, daemon=True).start()
 
     @Property("QVariantList", constant=True)
     def quickWhites(self):
@@ -302,11 +430,15 @@ class Backend(QObject):
 
     @Slot(str)
     def recallScene(self, sid: str):
-        """Recall a scene — and show its target state at once. A scene stores exactly what
-        each light becomes, so the app needn't wait ~1 s for the bridge's events (which
-        arrive after the lamps have already changed)."""
-        if not self.state:
-            return
+        """Recall a scene as saved (static)."""
+        if self.state:
+            self._preview_scene(sid, "static")
+            self.cmd.put("scene", sid, {"recall": {"action": "active"}})
+
+    def _preview_scene(self, sid: str, status: str):
+        """Show a scene's target state at once. A scene stores exactly what each light
+        becomes, so the app needn't wait ~1 s for the bridge's events (which arrive after
+        the lamps have already changed)."""
         scene = self.state.get(sid) or {}
         group = scene.get("group", {}).get("rid")
         updates = []
@@ -325,7 +457,6 @@ class Backend(QObject):
             updates.append(u)
         for s in self.state.scenes_for(group) if group else []:   # this one becomes the active scene
             updates.append({"id": s["id"], "type": "scene",
-                            "status": {"active": "static" if s["id"] == sid else "inactive"}})
+                            "status": {"active": status if s["id"] == sid else "inactive"}})
         if updates:
             self.state.apply([{"type": "update", "data": updates}])
-        self.cmd.put("scene", sid, {"recall": {"action": "active"}})

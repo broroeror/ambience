@@ -5,3 +5,8 @@ AmberSlider 1.0 AmberSlider.qml
 ColourWheel 1.0 ColourWheel.qml
 HomePage 1.0 HomePage.qml
 RoomPage 1.0 RoomPage.qml
+SceneTile 1.0 SceneTile.qml
+SceneStrip 1.0 SceneStrip.qml
+ScenesPage 1.0 ScenesPage.qml
+ThemedMenu 1.0 ThemedMenu.qml
+ThemedMenuItem 1.0 ThemedMenuItem.qml

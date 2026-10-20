@@ -6,11 +6,12 @@ import QtQuick.Controls.Basic
 Slider {
     id: control
     property real liveValue: 0
+    property bool follow: true            // false: a choice the user makes (not a live value)
     property var trackGradient: null     // optional list of colours for a gradient track
     from: 1; to: 100
     implicitHeight: 28
 
-    Binding on value { value: control.liveValue; when: !control.pressed; restoreMode: Binding.RestoreNone }
+    Binding on value { value: control.liveValue; when: control.follow && !control.pressed; restoreMode: Binding.RestoreNone }
 
     background: Rectangle {
         x: control.leftPadding; y: control.topPadding + control.availableHeight / 2 - height / 2

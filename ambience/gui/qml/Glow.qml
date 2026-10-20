@@ -26,7 +26,9 @@ Item {
         Shape {
             id: pool
             anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
+            // Standard renderer: the curve renderer ignored the strips' clip (and even page
+            // visibility) in Qt 6.12, leaving glow slivers outside their tiles.
+            antialiasing: true
             readonly property bool single: root.colors.length === 1
             readonly property var spot: single ? [0.5, 0.6, 0.72] : root.spots[index]
             property color c: root.colors[index] ?? "black"

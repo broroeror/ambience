@@ -146,6 +146,15 @@ class Bridge:
     def put(self, resource: str, rid: str, body: dict):
         return self.request("PUT", f"/clip/v2/resource/{resource}/{rid}", body)
 
+    def post(self, resource: str, body: dict) -> str:
+        """Create a resource; returns the new id."""
+        res = self.request("POST", f"/clip/v2/resource/{resource}", body) or {}
+        data = res.get("data") or [{}]
+        return data[0].get("rid", "")
+
+    def delete(self, resource: str, rid: str):
+        return self.request("DELETE", f"/clip/v2/resource/{resource}/{rid}")
+
     def set_entertainment(self, area_id: str, active: bool):
         """Start/stop streaming mode for an entertainment area (must be started before
         the DTLS connection; stopping releases the lights back to normal control)."""

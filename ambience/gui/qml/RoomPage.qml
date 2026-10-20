@@ -69,30 +69,10 @@ Item {
                 }
 
                 Label { text: "SCENES"; color: Theme.muted; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1 }
-                ListView {
+                SceneStrip {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 118
-                    orientation: ListView.Horizontal
-                    spacing: 12
-                    clip: true
+                    Layout.preferredHeight: implicitHeight
                     model: backend.scenesModel
-                    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
-                    delegate: Rectangle {
-                        id: sc
-                        required property var item
-                        width: 150; height: 112
-                        radius: 14
-                        color: Theme.surface
-                        border.width: 2
-                        border.color: sc.item.active ? Theme.accent : (scHover.hovered ? Theme.lineStrong : Theme.line)
-                        HoverHandler { id: scHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: backend.recallScene(sc.item.id) }
-                        Glow { x: 2; y: 2; width: parent.width - 4; height: 70; topRadius: 12; colors: sc.item.glow }
-                        Label {
-                            x: 12; y: 78; width: parent.width - 24
-                            text: sc.item.name; color: Theme.text; font.weight: Font.Bold; elide: Text.ElideRight
-                        }
-                    }
                 }
 
                 Label { text: "LIGHTS"; color: Theme.muted; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1 }
