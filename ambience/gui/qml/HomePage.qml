@@ -8,6 +8,7 @@ Flickable {
     contentHeight: column.implicitHeight + 64
     clip: true
     ScrollBar.vertical: ScrollBar {}
+    FastWheel { flick: page }
 
     ColumnLayout {
         id: column

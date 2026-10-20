@@ -61,9 +61,16 @@ Rectangle {
     }
 
     Label {
-        x: 12; y: 78; width: parent.width - 24 - (wave.visible ? 18 : 0)
+        x: 12; y: 78; width: parent.width - 24 - (wave.visible || !!tile.item.effect ? 18 : 0)
         text: tile.item.name || ""
         color: Theme.text; font.weight: Font.Bold; elide: Text.ElideRight
+    }
+    Label {   // effect scenes (fire, candle, …) animate by themselves
+        visible: !!tile.item.effect
+        anchors.right: parent.right; anchors.rightMargin: 11; y: 77
+        text: "✦"; color: tile.item.active ? Theme.accent : Theme.muted
+        font.pixelSize: 15
+        Accessible.name: "Light effect: " + tile.item.effect
     }
     Label {
         id: wave

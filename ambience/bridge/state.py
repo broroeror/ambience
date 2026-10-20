@@ -173,9 +173,12 @@ class CommandQueue:
         self._cv = threading.Condition()
         threading.Thread(target=self._run, name="hue-commands", daemon=True).start()
 
-    def put(self, rtype: str, rid: str, body: dict) -> None:
+    def put(self, rtype: str, rid: str, body: dict, slot: str = "") -> None:
+        """Queue a PUT. Bodies for the same (rtype, rid, slot) merge; a different `slot`
+        keeps a command separate and in order — e.g. a scene's speed change must go out
+        BEFORE its recall, as its own PUT (the bridge rejects the two combined)."""
         with self._cv:
-            cur = self._pending.setdefault((rtype, rid), {})
+            cur = self._pending.setdefault((rtype, rid, slot), {})
             _merge(cur, body)
             self._cv.notify()
 

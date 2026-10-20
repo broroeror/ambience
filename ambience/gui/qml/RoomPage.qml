@@ -18,6 +18,7 @@ Item {
             contentHeight: col.implicitHeight + 56
             clip: true
             ScrollBar.vertical: ScrollBar {}
+            FastWheel { flick: main }
 
             ColumnLayout {
                 id: col

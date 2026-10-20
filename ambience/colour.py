@@ -84,3 +84,41 @@ def palette_hexes(scene: dict, limit: int = 5) -> list[str]:
         if h not in seen:
             seen.append(h)
     return seen[:limit]
+
+
+# Built-in light effects (a scene's actions can run one instead of a colour). The bridge
+# keeps whatever palette the scene had before, which the phone app ignores for effect
+# scenes — so we show the effect's own character instead.
+EFFECT_LOOKS = {
+    "fire":       ["#ff3a00", "#ff7a00", "#ffb030", "#ff5a10", "#c42a00"],
+    "candle":     ["#ff9a3c", "#ffb867", "#ff8a2a"],
+    "sparkle":    ["#ffffff", "#fff3dc", "#e6efff"],
+    "glisten":    ["#ffe7c0", "#ffffff"],
+    "opal":       ["#ffd9e8", "#d9efff", "#fff2d6"],
+    "prism":      ["#ff3355", "#ffb000", "#38d36b", "#2f8cff", "#a14bff"],
+    "underwater": ["#003d6b", "#0077b6", "#00b4d8", "#48cae4"],
+    "cosmos":     ["#1b0042", "#3c096c", "#7b2cbf", "#240046"],
+    "sunbeam":    ["#ffd27a", "#ffb347", "#fff0c2"],
+    "enchant":    ["#7b2cbf", "#c77dff", "#ffd6ff"],
+}
+
+
+def scene_effect(scene: dict) -> str:
+    """The effect most of a scene's lights run, or "" for a colour/white scene."""
+    names = []
+    for a in scene.get("actions", []):
+        act = a.get("action", {})
+        eff = (act.get("effects") or {}).get("effect") or ((act.get("effects_v2") or {}).get("action") or {}).get("effect")
+        names.append(eff if eff and eff != "no_effect" else "")
+    effects = [n for n in names if n]
+    if not effects or len(effects) * 2 < len(names):
+        return ""
+    return max(set(effects), key=effects.count)
+
+
+def scene_look(scene: dict) -> list[str]:
+    """Display colours for a scene tile: an effect's character, else its palette/actions."""
+    eff = scene_effect(scene)
+    if eff:
+        return EFFECT_LOOKS.get(eff, ["#ffb547"])
+    return palette_hexes(scene)

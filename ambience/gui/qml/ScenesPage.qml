@@ -17,6 +17,7 @@ Item {
             contentHeight: col.implicitHeight + 56
             clip: true
             ScrollBar.vertical: ScrollBar {}
+            FastWheel { flick: main }
 
             ColumnLayout {
                 id: col
@@ -69,7 +70,9 @@ Item {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     flickableDirection: Flickable.HorizontalFlick
-                    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                    interactive: false
+                    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded; interactive: true }
+                    SideScroll { flick: gallery }
                     model: backend.galleryModel
                     delegate: Rectangle {
                         id: preset
@@ -79,7 +82,9 @@ Item {
                         color: Theme.surface
                         border.color: pHover.hovered ? Theme.lineStrong : Theme.line
                         HoverHandler { id: pHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: { addMenu.preset = preset.item; addMenu.popup() } }
+                        // Snapshot the room list when the menu opens: bound live, it was rebuilt on every
+                        // bridge update, so a click could land on an item that had just been replaced.
+                        TapHandler { onTapped: { addMenu.preset = preset.item; addMenu.choices = backend.groupChoices.slice(); addMenu.popup() } }
                         Glow { x: 1; y: 1; width: parent.width - 2; height: 78; topRadius: 15; colors: preset.item.glow }
                         Column {
                             x: 14; y: 88; width: parent.width - 28
@@ -91,9 +96,10 @@ Item {
                     ThemedMenu {
                         id: addMenu
                         property var preset: ({})
+                        property var choices: []
                         title: "Add to…"
                         Instantiator {   // a Repeater can't populate a Menu; an Instantiator can
-                            model: backend.groupChoices
+                            model: addMenu.choices
                             delegate: ThemedMenuItem {
                                 required property var modelData
                                 text: "Add to " + modelData.name

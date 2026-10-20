@@ -18,7 +18,7 @@ from PySide6.QtGui import QImage
 from ..bridge import store
 from ..bridge.client import Bridge, BridgeError
 from ..bridge.state import CommandQueue, HomeState
-from ..colour import light_hex, palette_hexes, rgb_to_xy
+from ..colour import light_hex, palette_hexes, rgb_to_xy, scene_effect, scene_look
 from ..presets import BY_ID as PRESETS_BY_ID, PRESETS, scene_body
 
 # Your own scene photos live on this computer (the bridge can't store images), so the
@@ -291,7 +291,8 @@ class Backend(QObject):
         return [self._scene_entry(s) for s in self.state.scenes_for(self._room_id)]
 
     def _scene_entry(self, s: dict) -> dict:
-        pal = palette_hexes(s)
+        effect = scene_effect(s)
+        pal = scene_look(s)
         status = (s.get("status") or {}).get("active") or "inactive"
         bris = [a["action"]["dimming"]["brightness"] for a in s.get("actions", [])
                 if a.get("action", {}).get("dimming", {}).get("brightness") is not None]
@@ -299,7 +300,9 @@ class Backend(QObject):
         photo = PHOTO_DIR / f"{s['id']}.jpg"
         return {
             "id": s["id"], "name": _name(s), "glow": pal or ["#ffb547"], "groupName": _name(group),
-            "dynamic": len(pal) > 1, "active": status != "inactive", "playing": status,
+            # effect scenes animate by themselves; "dynamic" means cycling a colour palette
+            "dynamic": not effect and len(palette_hexes(s)) > 1, "effect": effect.replace("_", " "),
+            "active": status != "inactive", "playing": status,
             "speed": float(s.get("speed", 0.6)), "brightness": round(sum(bris) / len(bris)) if bris else 100,
             "selected": s["id"] == self._scene_id,
             # the mtime in the URL makes QML reload a replaced photo instead of using its cache
@@ -323,13 +326,13 @@ class Backend(QObject):
         """Recall a scene static or dynamic (cycling through its palette at `speed`)."""
         if not self.state:
             return
-        body: dict = {"recall": {"action": "dynamic_palette" if dynamic else "active",
-                                 "dimming": {"brightness": max(1.0, min(100.0, brightness))}}}
-        if dynamic:   # one PUT: the scene's stored speed + the recall
-            body["speed"] = round(max(0.0, min(1.0, speed)), 3)
-            self.state.apply([{"type": "update", "data": [{"id": sid, "type": "scene", "speed": body["speed"]}]}])
+        if dynamic:   # the scene's stored speed first, as its own PUT ("Recall cannot be
+            speed = round(max(0.0, min(1.0, speed)), 3)   # combined with modifying 'speed'")
+            self._send("scene", sid, {"speed": speed})
         self._preview_scene(sid, "dynamic_palette" if dynamic else "static")
-        self.cmd.put("scene", sid, body)
+        self.cmd.put("scene", sid, {"recall": {"action": "dynamic_palette" if dynamic else "active",
+                                               "dimming": {"brightness": max(1.0, min(100.0, brightness))}}},
+                     slot="recall")
 
     @Slot(str, float)
     def setSceneSpeed(self, sid: str, speed: float):
@@ -352,6 +355,25 @@ class Backend(QObject):
     def clearScenePhoto(self, sid: str):
         (PHOTO_DIR / f"{sid}.jpg").unlink(missing_ok=True)
         self._refresh()
+
+    @Slot(str)
+    def deleteScene(self, sid: str):
+        """Delete a scene from the bridge (the UI asks for confirmation first)."""
+        scene = self.state.get(sid) if self.state else None
+        if not scene:
+            return
+        name = _name(scene)
+
+        def work():
+            try:
+                self.bridge.delete("scene", sid)
+            except (OSError, BridgeError) as e:
+                self._set_error_from_thread(f"Couldn't delete {name}: {e}")
+                return
+            (PHOTO_DIR / f"{sid}.jpg").unlink(missing_ok=True)
+            self.state.apply([{"type": "delete", "data": [{"id": sid, "type": "scene"}]}])
+            self._noticeFromThread.emit(f"Deleted “{name}”")
+        threading.Thread(target=work, daemon=True).start()
 
     @Slot(str, str)
     def addPreset(self, preset_id: str, group_id: str):
@@ -433,7 +455,7 @@ class Backend(QObject):
         """Recall a scene as saved (static)."""
         if self.state:
             self._preview_scene(sid, "static")
-            self.cmd.put("scene", sid, {"recall": {"action": "active"}})
+            self.cmd.put("scene", sid, {"recall": {"action": "active"}}, slot="recall")
 
     def _preview_scene(self, sid: str, status: str):
         """Show a scene's target state at once. A scene stores exactly what each light
