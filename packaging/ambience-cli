@@ -1,0 +1,3 @@
+#!/bin/sh
+export PYTHONPATH=/usr/lib/ambience${PYTHONPATH:+:$PYTHONPATH}
+exec python3 -m ambience "$@"

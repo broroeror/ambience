@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ambience
+GenericName=Smart Lights
+Comment=Control your Philips Hue lights and sync them to your screen or music (unofficial)
+Exec=ambience
+Icon=ambience
+Terminal=false
+Categories=Utility;Qt;
+Keywords=hue;lights;lighting;scenes;sync;entertainment;
+StartupWMClass=ambience
