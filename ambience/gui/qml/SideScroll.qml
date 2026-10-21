@@ -13,12 +13,12 @@ Item {
     property var pageWheel: null       // the page's FastWheel
 
     // Same wheel-vs-touchpad rule as FastWheel: no scroll phase = a wheel (go by angle,
-    // 120 per notch → 180 px); a phase = a touchpad gesture (pixels 1:1).
+    // 120 per notch → ~100 px); a phase = a touchpad gesture (pixels 1:1).
     function amount(ev, horizontal) {
         const px = horizontal ? ev.pixelDelta.x : ev.pixelDelta.y
         const ang = horizontal ? ev.angleDelta.x : ev.angleDelta.y
         if (ev.phase !== Qt.NoScrollPhase && px !== 0) return px
-        return ang / 120 * Qt.styleHints.wheelScrollLines * 60
+        return ang / 120 * Qt.styleHints.wheelScrollLines * Theme.wheelPixelsPerLine
     }
 
     function scrollBy(dx) {

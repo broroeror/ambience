@@ -1,7 +1,7 @@
 import QtQuick
 
 // Mouse-wheel scrolling at a normal desktop pace — Qt's Flickable default is sluggish.
-// Wheels go by notches (the system's "lines per scroll" × 60 px, eased); touchpads follow
+// Wheels go by notches (the system's "lines per scroll" × Theme.wheelPixelsPerLine, eased); touchpads follow
 // the fingers 1:1 via their pixel deltas.
 // Wheel vs touchpad is decided by the scroll PHASE: touchpads report a gesture (begin /
 // update / end), wheels report none. Neither the device type nor the deltas can be trusted:
@@ -11,7 +11,7 @@ import QtQuick
 WheelHandler {
     id: wheel
     property Flickable flick
-    property real notchPixels: Qt.styleHints.wheelScrollLines * 60
+    property real notchPixels: Qt.styleHints.wheelScrollLines * Theme.wheelPixelsPerLine
     property real goal: 0
     target: null
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
