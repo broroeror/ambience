@@ -49,3 +49,8 @@ python -m ambience test-pattern   # 10 s rainbow on your first entertainment are
   latest value) and paces writes to the bridge's limits (~10/s lights, ~1/s rooms).
 - `ambience/gui/` — the PySide6/QML app. Fonts: Manrope (SIL Open Font License, see
   `gui/fonts/OFL.txt`).
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). The bundled Manrope fonts are under the SIL Open Font Licence
+(`ambience/gui/fonts/OFL.txt`).

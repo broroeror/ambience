@@ -1,7 +1,7 @@
 # Ambience — to do
 
 ## Next up
-- [ ] **AUR** — needs a licence, a public GitHub repo and a `v0.1.0` tag first; then an
+- [ ] **AUR** — licence chosen (MIT); still needs a public GitHub repo and a `v0.1.0` tag first; then an
       `packaging/aur/PKGBUILD` pointing at the tag's tarball, `.SRCINFO`, and the user pushes.
 - [ ] Optional "Start with the computer" (autostart `ambience --hidden`) — Settings page.
 - [ ] **Settings page** — bridge info + re-pair, scroll speed (now `Theme.wheelPixelsPerLine`),

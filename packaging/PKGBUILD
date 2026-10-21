@@ -8,7 +8,7 @@ pkgver=0.1.0
 pkgrel=1
 pkgdesc="Unofficial Philips Hue app: rooms, scenes and screen/music sync (not affiliated with Signify)"
 arch=('any')
-license=('LicenseRef-undecided')
+license=('MIT')
 depends=('python' 'pyside6' 'qt6-declarative' 'qt6-svg'
          'python-keyring' 'python-cryptography' 'python-numpy' 'python-gobject' 'openssl'
          'gstreamer' 'gst-plugins-base' 'gst-plugins-good' 'gst-plugin-pipewire'
@@ -29,5 +29,6 @@ package() {
   install -Dm755 packaging/ambience-cli "$pkgdir/usr/bin/ambience-cli"
   install -Dm644 packaging/ambience.desktop "$pkgdir/usr/share/applications/ambience.desktop"
   install -Dm644 ambience/gui/icons/ambience.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ambience.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 ambience/gui/fonts/OFL.txt "$pkgdir/usr/share/licenses/$pkgname/Manrope-OFL.txt"
 }
