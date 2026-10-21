@@ -123,6 +123,47 @@ def cmd_test_pattern(a):
         print("Entertainment area released.")
 
 
+def cmd_sync(a):
+    """Screen sync from the terminal (milestone-4 test harness before the Sync page)."""
+    import signal
+    import threading
+    from .sync.capture import CaptureError, ScreenCapture
+    from .sync.engine import SyncEngine, SyncSettings
+    br, p, client_key = _paired()
+    areas = br.get("entertainment_configuration")
+    area = next((e for e in areas if a.area in (e["id"], _name(e))), None) if a.area else (areas[0] if areas else None)
+    if not area:
+        sys.exit("No entertainment area found.")
+    cap = ScreenCapture()
+    print("Asking Plasma for your screen (the dialog only appears the first time)…", flush=True)
+    try:
+        cap.start()
+    except CaptureError as e:
+        sys.exit(f"Screen capture: {e}")
+    t0 = time.monotonic()
+    while cap.latest()[0] is None and time.monotonic() - t0 < 5:
+        time.sleep(0.05)
+    if cap.latest()[0] is None:
+        cap.stop()
+        sys.exit(f"Screen capture started but no frames arrived ({cap.error or 'no error reported'}).")
+    settings = SyncSettings(intensity=a.intensity, brightness=a.brightness / 100)
+    signal.signal(signal.SIGINT, lambda *_: settings.stop.set())
+    eng = SyncEngine(br, p.host, client_key, area, cap)
+    th = threading.Thread(target=eng.run, args=(settings,), daemon=True)
+    print(f"Syncing '{_name(area)}' ({len(area.get('channels', []))} lights, {a.intensity}) for {a.seconds:g} s — Ctrl+C stops.", flush=True)
+    th.start()
+    end = time.monotonic() + a.seconds
+    while th.is_alive() and time.monotonic() < end and not settings.stop.is_set():
+        time.sleep(1)
+        el = max(1e-6, time.monotonic() - eng.stats["started"]) if eng.stats["started"] else 1
+        cols = " ".join("#%02x%02x%02x" % tuple(int(c * 255) for c in v) for v in eng.preview.values())
+        print(f"  {eng.stats['sent'] / el:4.0f} updates/s · {eng.stats['frames'] / el:4.0f} screen frames/s · {cols}", flush=True)
+    settings.stop.set()
+    th.join(5)
+    cap.stop()
+    print("Stopped; lights handed back.")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="ambience", description=f"Ambience {__version__} — milestone-1 tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -132,6 +173,12 @@ def main(argv=None):
     sp.add_argument("--wait", type=int, default=60)
     sp.set_defaults(fn=cmd_pair)
     sub.add_parser("show", help="rooms, lights, scenes, entertainment areas").set_defaults(fn=cmd_show)
+    sy = sub.add_parser("sync", help="sync an entertainment area to your screen")
+    sy.add_argument("--area", help="name or id (default: the first one)")
+    sy.add_argument("--seconds", type=float, default=30)
+    sy.add_argument("--intensity", choices=["subtle", "moderate", "high", "intense"], default="moderate")
+    sy.add_argument("--brightness", type=float, default=85)
+    sy.set_defaults(fn=cmd_sync)
     st = sub.add_parser("test-pattern", help="stream a rainbow to an entertainment area")
     st.add_argument("--area", help="name or id (default: the first one)")
     st.add_argument("--seconds", type=float, default=10)
