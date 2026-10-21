@@ -1,9 +1,12 @@
 import QtQuick
 
 // Mouse-wheel scrolling at a normal desktop pace — Qt's Flickable default is sluggish.
-// Mouse wheels go by notches (the system's "lines per scroll" × 60 px, eased); touchpads
-// follow the fingers 1:1 via their pixel deltas. On Wayland a mouse wheel can report pixel
-// deltas too, so the device type decides, not which delta happens to be present.
+// Wheels go by notches (the system's "lines per scroll" × 60 px, eased); touchpads follow
+// the fingers 1:1 via their pixel deltas.
+// Wheel vs touchpad is decided by the scroll PHASE: touchpads report a gesture (begin /
+// update / end), wheels report none. Neither the device type nor the deltas can be trusted:
+// on this KWin/Wayland setup a hi-res mouse wheel arrives as device "touchpad" (type 4),
+// 7–8 events per notch whose angle deltas sum to 120 but whose pixel deltas sum to ~15.
 // Strips call handle() for vertical wheels over them, so the whole page shares one goal.
 WheelHandler {
     id: wheel
@@ -16,7 +19,12 @@ WheelHandler {
 
     function handle(ev) {
         if (!flick) return
-        const touchpad = ev.device && ev.device.type === PointerDevice.TouchPad
+        const touchpad = ev.phase !== Qt.NoScrollPhase
+        if (backend.debugWheel)
+            backend.debugLog("wheel: device=" + (ev.device ? ev.device.name + " type=" + ev.device.type : "?")
+                             + " angleDelta=" + ev.angleDelta.y + " pixelDelta=" + ev.pixelDelta.y
+                             + " phase=" + ev.phase + " inverted=" + ev.inverted
+                             + " contentY=" + Math.round(flick.contentY) + " t=" + Date.now() % 100000)
         const dy = touchpad ? (ev.pixelDelta.y !== 0 ? ev.pixelDelta.y : ev.angleDelta.y / 8)
                             : ev.angleDelta.y / 120 * notchPixels
         if (dy === 0) return

@@ -12,6 +12,15 @@ Item {
     property Flickable flick
     property var pageWheel: null       // the page's FastWheel
 
+    // Same wheel-vs-touchpad rule as FastWheel: no scroll phase = a wheel (go by angle,
+    // 120 per notch → 180 px); a phase = a touchpad gesture (pixels 1:1).
+    function amount(ev, horizontal) {
+        const px = horizontal ? ev.pixelDelta.x : ev.pixelDelta.y
+        const ang = horizontal ? ev.angleDelta.x : ev.angleDelta.y
+        if (ev.phase !== Qt.NoScrollPhase && px !== 0) return px
+        return ang / 120 * Qt.styleHints.wheelScrollLines * 60
+    }
+
     function scrollBy(dx) {
         const max = Math.max(0, flick.contentWidth - flick.width)
         flick.contentX = Math.max(0, Math.min(max, flick.contentX - dx))
@@ -21,14 +30,14 @@ Item {
         parent: side.flick
         target: null
         orientation: Qt.Horizontal
-        onWheel: (ev) => side.scrollBy(ev.pixelDelta.x !== 0 ? ev.pixelDelta.x : ev.angleDelta.x)
+        onWheel: (ev) => side.scrollBy(side.amount(ev, true))
     }
     WheelHandler {
         parent: side.flick
         target: null
         orientation: Qt.Vertical
         acceptedModifiers: Qt.ShiftModifier
-        onWheel: (ev) => side.scrollBy(ev.pixelDelta.y !== 0 ? ev.pixelDelta.y : ev.angleDelta.y)
+        onWheel: (ev) => side.scrollBy(side.amount(ev, false))
     }
     WheelHandler {
         parent: side.flick

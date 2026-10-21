@@ -180,6 +180,16 @@ class Backend(QObject):
         return self._scenes
 
     # --- status -----------------------------------------------------------------
+    # Diagnostics: AMBIENCE_DEBUG_WHEEL=1 prints every wheel event the pages receive.
+    @Property(bool, constant=True)
+    def debugWheel(self):
+        return bool(os.environ.get("AMBIENCE_DEBUG_WHEEL"))
+
+    @Slot(str)
+    def debugLog(self, msg: str):
+        import sys
+        print(msg, file=sys.stderr, flush=True)
+
     @Property(bool, notify=changed)
     def paired(self):
         return self.state is not None
