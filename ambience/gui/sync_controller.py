@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import multiprocessing as mp
 import os
+import time
 from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
@@ -253,12 +254,39 @@ class SyncController(QObject):
         self._send({"cmd": "stop"})
 
     def shutdown(self):
-        """Window closing: stop streaming (hands the lights back) and end the worker."""
-        if self._proc is not None and self._proc.is_alive():
-            self._send({"cmd": "quit"})
-            self._proc.join(6)
-            if self._proc.is_alive():
-                self._proc.terminate()
+        """App quitting: stop streaming (hands the lights back) and end the worker.
+
+        Keep READING the pipe while we wait. Once the event loop has stopped nobody drains
+        it, the worker's ~55 KB/s of previews fill it within a second, the worker blocks in
+        send() and never sees "quit" — it then got force-killed before stopping the area, so
+        the lights froze on the last colour. As a safety net, if the worker never confirms it
+        stopped, end the area's session from here (idempotent)."""
+        if self._proc is None or not self._proc.is_alive():
+            return
+        area = self._area() if self._state in ("running", "starting") else None
+        stopped = area is None
+        self._send({"cmd": "quit"})
+        deadline = time.monotonic() + 8
+        while self._proc.is_alive() and time.monotonic() < deadline:
+            try:
+                while self._conn is not None and self._conn.poll(0.05):
+                    msg = self._conn.recv()
+                    if msg.get("state") in ("stopped", "error"):
+                        stopped = True
+            except (EOFError, OSError):
+                self._proc.join(1)
+                break
+        if self._proc.is_alive():
+            self._proc.terminate()
+            self._proc.join(2)
+        from ..sync.engine import log
+        log(f"window: shutdown — worker {'confirmed stop' if stopped else 'did NOT confirm stop'}")
+        if area and not stopped and self.backend.bridge is not None:
+            log("window: safety-net stop of the area")
+            try:
+                self.backend.bridge.set_entertainment(area["id"], False)
+            except Exception:  # noqa: BLE001 — best effort; the bridge also times out on its own
+                pass
 
     def _drain(self):
         got_preview = False

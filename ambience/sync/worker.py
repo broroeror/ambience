@@ -55,6 +55,9 @@ def run_worker(conn) -> None:
             except EOFError:
                 msg = {"cmd": "quit"}
             cmd = msg.get("cmd")
+            if cmd in ("quit", "stop", "start"):
+                from .engine import log
+                log(f"worker: received {cmd}" + (f" ({msg.get('mode', 'screen')})" if cmd == "start" else ""))
             if cmd == "quit":
                 if thread:
                     stop_all()

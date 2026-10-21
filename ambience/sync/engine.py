@@ -18,6 +18,20 @@ from .colours import INTENSITIES, ColourMapper
 
 RATE_HZ = 50
 
+LOG = __import__("pathlib").Path(__import__("os").environ.get("XDG_CACHE_HOME", __import__("pathlib").Path.home() / ".cache")) / "ambience" / "sync.log"
+
+
+def log(msg: str) -> None:
+    """Sync lifecycle log (~/.cache/ambience/sync.log): what happened when, for diagnosing
+    reports like "the lights didn't go back". Kept short: trimmed to its last ~400 lines."""
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        lines = LOG.read_text().splitlines()[-400:] if LOG.exists() else []
+        lines.append(time.strftime("%Y-%m-%d %H:%M:%S ") + msg)
+        LOG.write_text("\n".join(lines) + "\n")
+    except OSError:
+        pass
+
 
 @dataclass
 class SyncSettings:
@@ -90,7 +104,9 @@ class SyncEngine:
         return self.producer.frames
 
     def run(self, settings: SyncSettings) -> None:
+        log(f"area {self.area['id'][:8]} start → streaming mode")
         self.bridge.set_entertainment(self.area["id"], True)
+        log("area started; opening DTLS")
         try:
             with DtlsPskClient(self.host, 2100, identity=self.bridge.app_key.encode(),
                                psk=bytes.fromhex(self.client_key)) as conn:
@@ -109,7 +125,9 @@ class SyncEngine:
                     if time.monotonic() - nxt > 0.5:     # fell far behind (suspend?) — don't burst
                         nxt = time.monotonic()
         finally:
+            log(f"stream ended after {self.stats['sent']} updates; stopping the area")
             try:
                 self.bridge.set_entertainment(self.area["id"], False)
-            except Exception:  # noqa: BLE001 — best effort; the bridge also times out on its own
-                pass
+                log("area stopped: bridge accepted action=stop")
+            except Exception as e:  # noqa: BLE001 — best effort; the bridge also times out on its own
+                log(f"area stop FAILED: {e}")
