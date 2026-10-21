@@ -6,8 +6,11 @@ ApplicationWindow {
     id: win
     width: 1280; height: 820
     minimumWidth: 900; minimumHeight: 600
-    visible: true
+    visible: false                // Python shows it (or keeps it in the tray with --hidden)
     title: "Ambience"
+    // With a tray, closing hides the window instead of quitting, so sync keeps running.
+    property bool hideOnClose: false
+    onClosing: (close) => { if (hideOnClose) { close.accepted = false; win.hide() } }
     color: Theme.ground
 
     property int page: 0          // 0 home, 1 room, 2 scenes, 3 sync

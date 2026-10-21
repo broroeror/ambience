@@ -1,8 +1,6 @@
 # Ambience — to do
 
 ## Next up
-- [ ] **Tray icon** — sync keeps running with the window closed; quick start/stop and
-      all-lights-off from the tray.
 - [ ] **Packaging** — PKGBUILD, `.desktop` entry and an icon, so Ambience is in the launcher.
       (Also silences the harmless "Could not register app ID … 'ambience'" warning at startup.)
 - [ ] **Settings page** — bridge info + re-pair, scroll speed (now `Theme.wheelPixelsPerLine`),
@@ -38,3 +36,5 @@
 - Milestone 4 — screen sync and music sync in a separate process, Sync page with live preview.
 - Pairing inside the app (first run, or `AMBIENCE_PAIR=1` to re-pair), with a bridge identity
   check before any pairing request.
+- Tray icon: close hides to the tray (sync keeps running), icon changes while syncing, menu
+  with Open / Start-Stop sync / All lights off / Quit; single instance; `--hidden`.
