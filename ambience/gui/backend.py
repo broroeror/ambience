@@ -109,9 +109,20 @@ class Backend(QObject):
         self._debounce.timeout.connect(self._refresh)
         self._stateBumped.connect(self._debounce.start)
 
+        from .pairing import PairingController
+        self._pairing = PairingController(self)
+        self._pairing.paired.connect(self._on_paired)
+        # AMBIENCE_PAIR=1 opens the pairing screen even when already paired (re-pair / try it)
+        self._pairing_open = bool(os.environ.get("AMBIENCE_PAIR"))
+        self._attach()
+
+    def _attach(self):
+        """(Re)connect to the paired bridge: live state, event stream, command queue."""
         got = store.load()
         if not got:
             return
+        if self.state:
+            self.state.stop()
         pairing, app_key, _client_key = got
         bridge = Bridge(pairing.host, pairing.cert_sha256, app_key)
         self.bridge = bridge
@@ -125,6 +136,32 @@ class Backend(QObject):
         self.state.subscribe(lambda _ids: self._stateBumped.emit())
         self.state.start()
         self._refresh()
+
+    def _on_paired(self):
+        self._pairing_open = False
+        self._attach()
+        self.changed.emit()
+
+    @Property(QObject, constant=True)
+    def pairing(self):
+        return self._pairing
+
+    @Property(bool, notify=changed)
+    def pairingOpen(self):
+        """Show the pairing screen: never paired, or asked for (re-pair)."""
+        return self._pairing_open or self.state is None
+
+    @Slot()
+    def openPairing(self):
+        self._pairing_open = True
+        self.changed.emit()
+
+    @Slot()
+    def closePairing(self):
+        if self.state is not None:
+            self._pairing.cancel()
+            self._pairing_open = False
+            self.changed.emit()
 
     def _refresh(self):
         if self.state:

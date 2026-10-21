@@ -72,21 +72,20 @@ ApplicationWindow {
 
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: backend.paired ? win.page : 4
+            currentIndex: win.page
             HomePage {
                 onOpenRoom: (rid) => { backend.openRoom(rid); win.page = 1 }
             }
             RoomPage { onBack: win.page = 0 }
             ScenesPage {}
             SyncPage {}
-            Item {   // not paired yet
-                ColumnLayout {
-                    anchors.centerIn: parent; spacing: 10
-                    Label { text: "Not paired with a bridge yet"; color: Theme.text; font.pixelSize: 22; font.weight: Font.ExtraBold }
-                    Label { text: "For now, pair from a terminal:  python -m ambience pair"; color: Theme.muted }
-                }
-            }
         }
+    }
+
+    PairingPage {   // first run or re-pair: covers the whole window
+        anchors.fill: parent
+        visible: backend.pairingOpen
+        z: 10
     }
 
     Rectangle {   // notice toast (e.g. "Added … to …")
