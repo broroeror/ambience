@@ -5,7 +5,7 @@ dynamic ones) with a preset gallery, and **entertainment-area sync** — your li
 follow your screen or your music, like Hue Sync does on Windows and macOS.
 
 > Not affiliated with or endorsed by Signify / Philips Hue. "Ambience" is a working name.
-> Status: early development — lights & rooms work; scenes, sync and settings are next.
+> Status: early development — lights, rooms, scenes, screen and music sync work; a Settings page is next.
 
 ## Requirements
 
@@ -13,11 +13,19 @@ follow your screen or your music, like Hue Sync does on Windows and macOS.
 - Python 3, `python-keyring` (keys are stored in KWallet / GNOME Keyring),
   `python-cryptography`, OpenSSL 3 (entertainment streaming uses DTLS-PSK via libssl).
 
-## Running the app
+## Installing (Arch)
 
 ```fish
-python -m ambience pair      # once: press the round button on the bridge when asked
-python -m ambience.gui       # the app
+cd packaging; makepkg -si    # builds from the committed state of this repo
+```
+
+Then open **Ambience** from the app menu (or run `ambience`; `ambience --hidden` starts in the
+tray). The first run walks you through pairing. `ambience-cli` has the command-line tools below.
+
+## Running from the source tree
+
+```fish
+python -m ambience.gui       # the app (pairs on first run)
 ```
 
 ## Milestone-1 tools

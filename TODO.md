@@ -1,8 +1,9 @@
 # Ambience — to do
 
 ## Next up
-- [ ] **Packaging** — PKGBUILD, `.desktop` entry and an icon, so Ambience is in the launcher.
-      (Also silences the harmless "Could not register app ID … 'ambience'" warning at startup.)
+- [ ] **AUR** — needs a licence, a public GitHub repo and a `v0.1.0` tag first; then an
+      `packaging/aur/PKGBUILD` pointing at the tag's tarball, `.SRCINFO`, and the user pushes.
+- [ ] Optional "Start with the computer" (autostart `ambience --hidden`) — Settings page.
 - [ ] **Settings page** — bridge info + re-pair, scroll speed (now `Theme.wheelPixelsPerLine`),
       fade length (`Theme.fadeMs`), default sync intensity.
 
@@ -27,6 +28,8 @@
 - [ ] Push to a private GitHub repo; decide on a licence before anything goes public.
 
 ## Done
+- Packaging: `packaging/PKGBUILD` (local build), `ambience` / `ambience-cli` launchers, desktop
+  entry + icon.
 - Milestone 1 — pairing, certificate pinning, keys in KWallet, DTLS entertainment streaming.
 - Milestone 2 — Home + Room screens on live bridge state, glow design, instant scene
   preview, 700 ms colour fades.
