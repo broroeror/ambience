@@ -38,3 +38,6 @@
   check before any pairing request.
 - Tray icon: close hides to the tray (sync keeps running), icon changes while syncing, menu
   with Open / Start-Stop sync / All lights off / Quit; single instance; `--hidden`.
+- Lights go back to how they were when sync stops (Stop, Quit or an error): the scene that
+  was playing is recalled again, everything else is restored light by light. The bridge
+  itself leaves them on the last synced colour.

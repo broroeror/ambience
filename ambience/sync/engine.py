@@ -104,6 +104,15 @@ class SyncEngine:
         return self.producer.frames
 
     def run(self, settings: SyncSettings) -> None:
+        # Ending a session only RELEASES the lights (they keep the last streamed colour), so
+        # remember how they were and put them back afterwards (see restore.py).
+        from .restore import restore, snapshot
+        try:
+            snap = snapshot(self.bridge, self.area)
+            log(f"snapshot: {len(snap.lights)} lights" + (f", scene playing ({snap.scene_action})" if snap.scene_id else ""))
+        except Exception as e:  # noqa: BLE001 — sync still works; we just can't restore
+            snap = None
+            log(f"snapshot FAILED (lights won't be restored): {e}")
         log(f"area {self.area['id'][:8]} start → streaming mode")
         self.bridge.set_entertainment(self.area["id"], True)
         log("area started; opening DTLS")
@@ -131,3 +140,8 @@ class SyncEngine:
                 log("area stopped: bridge accepted action=stop")
             except Exception as e:  # noqa: BLE001 — best effort; the bridge also times out on its own
                 log(f"area stop FAILED: {e}")
+            if snap is not None:
+                try:
+                    restore(self.bridge, snap, log)
+                except Exception as e:  # noqa: BLE001
+                    log(f"restore FAILED: {e}")
