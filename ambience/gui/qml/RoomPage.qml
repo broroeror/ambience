@@ -18,7 +18,7 @@ Item {
             contentHeight: col.implicitHeight + 56
             clip: true
             ScrollBar.vertical: ScrollBar {}
-            FastWheel { flick: main }
+            FastWheel { id: pageWheel; flick: main }
 
             ColumnLayout {
                 id: col
@@ -74,6 +74,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: implicitHeight
                     model: backend.scenesModel
+                    pageWheel: pageWheel
                 }
 
                 Label { text: "LIGHTS"; color: Theme.muted; font.pixelSize: 13; font.weight: Font.Bold; font.letterSpacing: 1 }

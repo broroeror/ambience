@@ -17,7 +17,7 @@ Item {
             contentHeight: col.implicitHeight + 56
             clip: true
             ScrollBar.vertical: ScrollBar {}
-            FastWheel { flick: main }
+            FastWheel { id: pageWheel; flick: main }
 
             ColumnLayout {
                 id: col
@@ -47,6 +47,7 @@ Item {
                             Layout.preferredHeight: implicitHeight
                             model: backend.sceneModelFor(item.id)
                             selectOnClick: true
+                            pageWheel: pageWheel
                         }
                     }
                 }
@@ -70,9 +71,8 @@ Item {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     flickableDirection: Flickable.HorizontalFlick
-                    interactive: false
-                    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded; interactive: true }
-                    SideScroll { flick: gallery }
+                    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                    SideScroll { flick: gallery; pageWheel: pageWheel }
                     model: backend.galleryModel
                     delegate: Rectangle {
                         id: preset

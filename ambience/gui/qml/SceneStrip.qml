@@ -15,11 +15,11 @@ GridView {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     flickableDirection: Flickable.HorizontalFlick
-    // Not interactive: the page owns the vertical wheel. Sideways scrolling (touchpad swipe,
-    // tilt wheel, or Shift+wheel) and the scrollbar still move the strip.
-    interactive: false
-    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded; interactive: true }
-    SideScroll { flick: strip }
+    // Click-and-drag scrolls sideways; wheels are routed by SideScroll (sideways → strip,
+    // vertical → the page's FastWheel).
+    property var pageWheel: null
+    ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+    SideScroll { flick: strip; pageWheel: strip.pageWheel }
 
     delegate: SceneTile {
         onClicked: strip.selectOnClick ? backend.selectScene(item.id) : backend.recallScene(item.id)
