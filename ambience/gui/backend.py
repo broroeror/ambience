@@ -109,6 +109,9 @@ class Backend(QObject):
         self._debounce.timeout.connect(self._refresh)
         self._stateBumped.connect(self._debounce.start)
 
+        from .settings import Settings
+        self._settings = Settings(self)
+
         from .pairing import PairingController
         self._pairing = PairingController(self)
         self._pairing.paired.connect(self._on_paired)
@@ -206,6 +209,10 @@ class Backend(QObject):
         if msg:
             self._noticeTimer.start()
         self.changed.emit()
+
+    @Property(QObject, constant=True)
+    def settings(self):
+        return self._settings
 
     @Property(QObject, constant=True)
     def sync(self):

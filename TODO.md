@@ -3,9 +3,6 @@
 ## Next up
 - [ ] **AUR** — licence chosen (MIT); still needs a public GitHub repo and a `v0.1.0` tag first; then an
       `packaging/aur/PKGBUILD` pointing at the tag's tarball, `.SRCINFO`, and the user pushes.
-- [ ] Optional "Start with the computer" (autostart `ambience --hidden`) — Settings page.
-- [ ] **Settings page** — bridge info + re-pair, scroll speed (now `Theme.wheelPixelsPerLine`),
-      fade length (`Theme.fadeMs`), default sync intensity.
 
 ## Later — responsiveness (parked 2026-10-21: looks fine by eye; revisit if it ever feels late)
 - [ ] **Measure first:** a "timing test" that flashes the screen and the lights together;
@@ -28,6 +25,8 @@
 - [ ] Push to a private GitHub repo; decide on a licence before anything goes public.
 
 ## Done
+- Settings page: bridge details + pair again, scroll speed, colour fade length, start with the
+  computer (an autostart entry), version/licence/log folder. Saved in `settings.json`.
 - Packaging: `packaging/PKGBUILD` (local build), `ambience` / `ambience-cli` launchers, desktop
   entry + icon.
 - Milestone 1 — pairing, certificate pinning, keys in KWallet, DTLS entertainment streaming.

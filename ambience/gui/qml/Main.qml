@@ -13,7 +13,10 @@ ApplicationWindow {
     onClosing: (close) => { if (hideOnClose) { close.accepted = false; win.hide() } }
     color: Theme.ground
 
-    property int page: 0          // 0 home, 1 room, 2 scenes, 3 sync
+    property int page: 0          // 0 home, 1 room, 2 scenes, 3 sync, 4 settings
+
+    Binding { target: Theme; property: "fadeMs"; value: backend.settings.fadeMs }
+    Binding { target: Theme; property: "wheelPixelsPerLine"; value: backend.settings.scrollSpeed }
 
     RowLayout {
         anchors.fill: parent
@@ -37,7 +40,7 @@ ApplicationWindow {
                 }
                 Repeater {
                     model: [{ label: "Home", ready: true, page: 0 }, { label: "Scenes", ready: true, page: 2 },
-                            { label: "Sync", ready: true, page: 3 }, { label: "Settings", ready: false, page: -1 }]
+                            { label: "Sync", ready: true, page: 3 }, { label: "Settings", ready: true, page: 4 }]
                     delegate: Button {
                         id: nav
                         required property var modelData
@@ -82,6 +85,7 @@ ApplicationWindow {
             RoomPage { onBack: win.page = 0 }
             ScenesPage {}
             SyncPage {}
+            SettingsPage {}
         }
     }
 

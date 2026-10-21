@@ -21,8 +21,9 @@ QtObject {
     readonly property color glowBase: "#121318"
     // How long on-screen colours take to settle into a new value: about as long as the
     // lamps' own fade, so the app glides along instead of snapping (or lagging visibly).
-    readonly property int fadeMs: 700
+    // Both tunables are set from Settings (Main.qml binds them); these are the defaults.
+    property int fadeMs: 700
     // Wheel scrolling: pixels per "line"; a notch is the system's lines-per-scroll (Plasma
     // default 3) × this ≈ 100 px. Same for every mouse: wheels report notches, not DPI.
-    readonly property real wheelPixelsPerLine: 34
+    property real wheelPixelsPerLine: 34
 }

@@ -14,3 +14,4 @@ FastWheel 1.0 FastWheel.qml
 SideScroll 1.0 SideScroll.qml
 SyncPage 1.0 SyncPage.qml
 PairingPage 1.0 PairingPage.qml
+SettingsPage 1.0 SettingsPage.qml

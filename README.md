@@ -5,7 +5,7 @@ dynamic ones) with a preset gallery, and **entertainment-area sync** — your li
 follow your screen or your music, like Hue Sync does on Windows and macOS.
 
 > Not affiliated with or endorsed by Signify / Philips Hue. "Ambience" is a working name.
-> Status: early development — lights, rooms, scenes, screen and music sync work; a Settings page is next.
+> Status: early development — lights, rooms, scenes, screen and music sync work; settings included.
 
 ## Requirements
 
