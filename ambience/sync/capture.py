@@ -64,7 +64,10 @@ class ScreenCapture:
             self._ctx = GLib.MainContext.new()
             self._ctx.push_thread_default()
             self._loop = GLib.MainLoop.new(self._ctx, False)
-            GLib.idle_add(lambda: self._begin(ready, result) and False)
+            # Start the portal conversation right here, on THIS thread's context. (It used
+            # to be GLib.idle_add, which queues on the GLOBAL default context — which nothing
+            # runs — so the first request was never sent and no dialog ever appeared.)
+            self._begin(ready, result)
             self._loop.run()
             self._ctx.pop_thread_default()
 
