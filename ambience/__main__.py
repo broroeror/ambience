@@ -128,7 +128,7 @@ def cmd_sync(a):
     import signal
     import threading
     from .sync.capture import CaptureError, ScreenCapture
-    from .sync.engine import SyncEngine, SyncSettings
+    from .sync.engine import ScreenProducer, SyncEngine, SyncSettings, area_channels
     br, p, client_key = _paired()
     areas = br.get("entertainment_configuration")
     area = next((e for e in areas if a.area in (e["id"], _name(e))), None) if a.area else (areas[0] if areas else None)
@@ -148,7 +148,7 @@ def cmd_sync(a):
         sys.exit(f"Screen capture started but no frames arrived ({cap.error or 'no error reported'}).")
     settings = SyncSettings(intensity=a.intensity, brightness=a.brightness / 100)
     signal.signal(signal.SIGINT, lambda *_: settings.stop.set())
-    eng = SyncEngine(br, p.host, client_key, area, cap)
+    eng = SyncEngine(br, p.host, client_key, area, ScreenProducer(cap, area_channels(area)))
     th = threading.Thread(target=eng.run, args=(settings,), daemon=True)
     print(f"Syncing '{_name(area)}' ({len(area.get('channels', []))} lights, {a.intensity}) for {a.seconds:g} s — Ctrl+C stops.", flush=True)
     th.start()
@@ -157,7 +157,7 @@ def cmd_sync(a):
         time.sleep(1)
         el = max(1e-6, time.monotonic() - eng.stats["started"]) if eng.stats["started"] else 1
         cols = " ".join("#%02x%02x%02x" % tuple(int(c * 255) for c in v) for v in eng.preview.values())
-        print(f"  {eng.stats['sent'] / el:4.0f} updates/s · {eng.stats['frames'] / el:4.0f} screen frames/s · {cols}", flush=True)
+        print(f"  {eng.stats['sent'] / el:4.0f} updates/s · {eng.frames / el:4.0f} screen frames/s · {cols}", flush=True)
     settings.stop.set()
     th.join(5)
     cap.stop()

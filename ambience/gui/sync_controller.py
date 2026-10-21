@@ -52,6 +52,10 @@ class SyncController(QObject):
         except (OSError, ValueError):
             pass
         self._area_id = saved.get("area", "")
+        self._mode = saved.get("mode", "screen")
+        self._palette_id = saved.get("palette", "party")
+        self._bands = {"bass": 0.0, "mids": 0.0, "highs": 0.0}
+        self._beat_count = 0
         self._intensity = saved.get("intensity", "moderate")
         self._brightness = float(saved.get("brightness", 0.85))
         self._poll = QTimer(self, interval=60)
@@ -60,7 +64,59 @@ class SyncController(QObject):
     def _save(self):
         SETTINGS.parent.mkdir(parents=True, exist_ok=True)
         SETTINGS.write_text(json.dumps({"area": self._area_id, "intensity": self._intensity,
-                                        "brightness": self._brightness}))
+                                        "brightness": self._brightness, "mode": self._mode,
+                                        "palette": self._palette_id}))
+
+    # --- mode + music palette ---------------------------------------------------------
+    @Property(str, notify=changed)
+    def mode(self):
+        return self._mode
+
+    @Slot(str)
+    def setMode(self, mode: str):
+        if mode in ("screen", "music") and self._state not in ("running", "starting"):
+            self._mode = mode
+            self._save()
+            self.changed.emit()
+
+    def _palettes(self) -> list[dict]:
+        from ..colour import palette_hexes
+        from ..presets import PRESETS
+        from ..sync.music import DEFAULT_PALETTE
+        out = [{"id": "party", "name": "Party (built in)", "glow": DEFAULT_PALETTE}]
+        out += [{"id": "preset:" + p.id, "name": p.name + " · gallery", "glow": list(p.colours)} for p in PRESETS]
+        st = self.backend.state
+        if st:
+            seen = set()
+            for sc in sorted(st.of("scene"), key=_name):
+                pal = palette_hexes(sc)
+                if len(pal) >= 3 and _name(sc) not in seen:     # one entry per name (rooms share scenes)
+                    seen.add(_name(sc))
+                    out.append({"id": "scene:" + sc["id"], "name": _name(sc), "glow": pal})
+        return out
+
+    @Property("QVariantList", notify=changed)
+    def palettes(self):
+        return self._palettes()
+
+    @Property("QVariantMap", notify=changed)
+    def palette(self):
+        ps = self._palettes()
+        return next((p for p in ps if p["id"] == self._palette_id), ps[0])
+
+    @Slot(str)
+    def choosePalette(self, pid: str):
+        self._palette_id = pid
+        self._save()
+        self.changed.emit()
+
+    @Property("QVariantMap", notify=previewChanged)
+    def bands(self):
+        return dict(self._bands)
+
+    @Property(int, notify=previewChanged)
+    def beatCount(self):
+        return self._beat_count
 
     # --- areas ---------------------------------------------------------------------
     def _areas(self) -> list[dict]:
@@ -149,7 +205,8 @@ class SyncController(QObject):
     def rateText(self):
         if self._state != "running":
             return ""
-        return f"{self._rate:.0f} updates/s · screen {self._fps:.0f} fps"
+        src = "screen" if self._mode == "screen" else "audio"
+        return f"{self._rate:.0f} updates/s · {src} {self._fps:.0f}/s"
 
     @Property(int, notify=previewChanged)
     def frameVersion(self):
@@ -185,9 +242,11 @@ class SyncController(QObject):
         self._ensure_worker()
         self._state, self._message = "starting", ""
         self.changed.emit()
-        self._send({"cmd": "start", "area": area, "host": pairing.host, "cert": pairing.cert_sha256,
-                    "app_key": app_key, "client_key": client_key,
-                    "intensity": self._intensity, "brightness": self._brightness})
+        from ..sync.music import vivid
+        self._send({"cmd": "start", "mode": self._mode, "area": area, "host": pairing.host,
+                    "cert": pairing.cert_sha256, "app_key": app_key, "client_key": client_key,
+                    "intensity": self._intensity, "brightness": self._brightness,
+                    "palette": vivid(self.palette["glow"])})
 
     @Slot()
     def stop(self):
@@ -224,6 +283,9 @@ class SyncController(QObject):
                 p = msg["preview"]
                 self._colours = {int(k): v for k, v in p["colours"].items()}
                 self._rate, self._fps = p["rate"], p["fps"]
+                if "bands" in p:
+                    self._bands = p["bands"]
+                    self._beat_count = int(p.get("beats", self._beat_count))
                 if p.get("frame"):
                     self.provider.image = QImage(p["frame"], p["w"], p["h"], p["w"] * 3, QImage.Format_RGB888).copy()
                     self._frame_version += 1

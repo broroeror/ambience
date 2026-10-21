@@ -71,18 +71,57 @@ Flickable {
                             Rectangle {
                                 width: parent.width; height: width * 9 / 16
                                 radius: 10; color: Theme.glowBase; border.color: Theme.lineStrong; clip: true
+                                Row {   // music: what the lights are listening to
+                                    visible: page.sync.mode === "music" && page.sync.state === "running"
+                                    anchors.centerIn: parent
+                                    spacing: 24
+                                    Repeater {
+                                        model: [["bass", "Bass"], ["mids", "Mids"], ["highs", "Highs"]]
+                                        delegate: Column {
+                                            required property var modelData
+                                            spacing: 6
+                                            Rectangle {
+                                                width: 46; height: 140; radius: 8; color: Theme.well
+                                                Rectangle {
+                                                    anchors.bottom: parent.bottom; width: parent.width; radius: 8
+                                                    height: Math.max(6, parent.height * (page.sync.bands[modelData[0]] || 0))
+                                                    color: Theme.accent
+                                                    Behavior on height { NumberAnimation { duration: 110 } }
+                                                }
+                                            }
+                                            Label { anchors.horizontalCenter: parent.horizontalCenter; text: modelData[1]; color: Theme.muted; font.pixelSize: 12 }
+                                        }
+                                    }
+                                    Rectangle {   // flashes on every beat
+                                        id: beatDot
+                                        width: 46; height: 46; radius: 23; y: 47
+                                        color: Theme.accent; opacity: 0.15
+                                        property int lastBeat: 0
+                                        Connections {
+                                            target: page.sync
+                                            function onPreviewChanged() {
+                                                if (page.sync.beatCount !== beatDot.lastBeat) { beatDot.lastBeat = page.sync.beatCount; flash.restart() }
+                                            }
+                                        }
+                                        SequentialAnimation on opacity {
+                                            id: flash; running: false
+                                            NumberAnimation { to: 1; duration: 40 }
+                                            NumberAnimation { to: 0.15; duration: 260 }
+                                        }
+                                    }
+                                }
                                 Image {
                                     anchors.fill: parent; anchors.margins: 1
-                                    visible: page.sync.state === "running"
+                                    visible: page.sync.mode === "screen" && page.sync.state === "running"
                                     source: "image://sync/frame/" + page.sync.frameVersion
                                     smooth: true; cache: false
                                 }
                                 Label {
                                     anchors.centerIn: parent; visible: page.sync.state !== "running"
-                                    text: "What the lights see appears here"; color: Theme.muted
+                                    text: page.sync.mode === "music" ? "The music the lights hear appears here" : "What the lights see appears here"; color: Theme.muted
                                 }
                             }
-                            Label { text: "Your screen, as the lights sample it"; color: Theme.muted; font.pixelSize: 12 }
+                            Label { text: page.sync.mode === "music" ? "What’s playing on your speakers, as the lights hear it" : "Your screen, as the lights sample it"; color: Theme.muted; font.pixelSize: 12 }
                         }
                         Column {
                             spacing: 8
@@ -91,7 +130,7 @@ Flickable {
                                 width: 340; height: 340
                                 radius: 14; color: Theme.sidebar; border.color: Theme.lineStrong
                                 Rectangle { x: 110; width: 120; y: 6; height: 6; radius: 3; color: Theme.textSoft }
-                                Label { anchors.horizontalCenter: parent.horizontalCenter; y: 16; text: "screen"; color: Theme.muted; font.pixelSize: 11 }
+                                Label { anchors.horizontalCenter: parent.horizontalCenter; y: 16; text: page.sync.mode === "music" ? "front" : "screen"; color: Theme.muted; font.pixelSize: 11 }
                                 Repeater {
                                     model: page.sync.lamps
                                     delegate: Item {
@@ -136,15 +175,47 @@ Flickable {
                             Layout.fillWidth: true
                             spacing: 4
                             Repeater {
-                                model: [["screen", "Screen", true], ["music", "Music · soon", false]]
+                                model: [["screen", "Screen"], ["music", "Music"]]
                                 delegate: Button {
                                     required property var modelData
                                     Layout.fillWidth: true; implicitHeight: 44
-                                    enabled: modelData[2]
-                                    readonly property bool on: modelData[0] === "screen"
-                                    contentItem: Label { text: modelData[1]; color: parent.on ? Theme.text : Theme.muted; font.weight: parent.on ? Font.ExtraBold : Font.Bold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                    enabled: !page.active
+                                    readonly property bool on: page.sync.mode === modelData[0]
+                                    onClicked: page.sync.setMode(modelData[0])
+                                    contentItem: Label { text: modelData[1]; color: parent.on ? Theme.text : Theme.mutedNav; font.weight: parent.on ? Font.ExtraBold : Font.Bold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                     background: Rectangle { radius: 9; color: parent.on ? Theme.lineStrong : Theme.well }
                                 }
+                            }
+                        }
+                    }
+                    ColumnLayout {   // music colours
+                        visible: page.sync.mode === "music"
+                        spacing: 8
+                        Label { text: "Colours"; color: Theme.muted }
+                        ComboBox {
+                            id: palBox
+                            Layout.fillWidth: true; implicitHeight: 48
+                            model: page.sync.palettes
+                            textRole: "name"; valueRole: "id"
+                            currentIndex: Math.max(0, indexOfValue(page.sync.palette.id || ""))
+                            onActivated: page.sync.choosePalette(currentValue)
+                            contentItem: RowLayout {
+                                spacing: 10
+                                Glow { Layout.leftMargin: 8; Layout.preferredWidth: 46; Layout.preferredHeight: 30; topRadius: 8; bottomRadius: 8; colors: page.sync.palette.glow || [] }
+                                Label { text: page.sync.palette.name || ""; color: Theme.text; font.weight: Font.Bold; elide: Text.ElideRight; Layout.fillWidth: true }
+                            }
+                            background: Rectangle { radius: 12; color: Theme.well; border.color: Theme.lineStrong }
+                            popup.background: Rectangle { radius: 12; color: Theme.raised; border.color: Theme.lineStrong }
+                            popup.height: Math.min(420, popup.contentItem.implicitHeight + 12)
+                            delegate: ItemDelegate {
+                                required property var modelData
+                                width: palBox.width
+                                contentItem: RowLayout {
+                                    spacing: 10
+                                    Glow { Layout.preferredWidth: 40; Layout.preferredHeight: 26; topRadius: 7; bottomRadius: 7; colors: modelData.glow }
+                                    Label { text: modelData.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
+                                }
+                                background: Rectangle { color: parent.highlighted ? Theme.lineStrong : "transparent"; radius: 8 }
                             }
                         }
                     }
@@ -182,7 +253,8 @@ Flickable {
                         }
                     }
                     Rectangle {
-                        visible: (page.sync.area.type || "") !== "screen" && (page.sync.area.type || "") !== ""
+                        // only a concern for SCREEN sync — a music area is exactly right for music
+                        visible: page.sync.mode === "screen" && (page.sync.area.type || "") !== "screen" && (page.sync.area.type || "") !== ""
                         Layout.fillWidth: true
                         implicitHeight: hint.implicitHeight + 24
                         radius: 12; color: "#1d1a12"; border.color: "#4a3d1c"

@@ -1,4 +1,4 @@
-"""The sync engine: capture → colours → HueStream over DTLS, at a steady 50 Hz.
+"""The sync engine: a producer (screen or music) → HueStream over DTLS, at a steady 50 Hz.
 
 Lifecycle (the bridge's rules): put the entertainment area in streaming mode (PUT
 action=start), open the DTLS connection, send continuously (the bridge drops the stream
@@ -31,33 +31,74 @@ def area_channels(area: dict) -> list[dict]:
              "z": c.get("position", {}).get("z", 0.0)} for c in area.get("channels", [])]
 
 
+class ScreenProducer:
+    """Screen capture → a colour per light (see colours.py)."""
+
+    def __init__(self, capture, channels: list[dict]):
+        self.capture, self.frames, self._last = capture, 0, -1
+        frame, _ = capture.latest()
+        h, w = (frame.shape[:2] if frame is not None else (144, 256))
+        self.mapper = ColourMapper(channels, w, h)
+
+    def step(self, settings: SyncSettings) -> dict[int, tuple]:
+        frame, count = self.capture.latest()
+        fresh = frame if count != self._last else None
+        if fresh is not None:
+            self.frames += 1
+            self._last = count
+        level = INTENSITIES.get(settings.intensity, INTENSITIES["moderate"])
+        return self.mapper.step(fresh, level, settings.brightness)
+
+    def preview(self) -> dict:
+        frame, _ = self.capture.latest()
+        if frame is None or frame.shape[0] % 36 or frame.shape[1] % 64:
+            return {"frame": None}
+        h, w = frame.shape[:2]       # 64×36 thumbnail of what the lights sample
+        small = frame.reshape(36, h // 36, 64, w // 64, 3).mean(axis=(1, 3)).astype("uint8")
+        return {"frame": small.tobytes(), "w": 64, "h": 36}
+
+
+class MusicProducer:
+    """What's playing → a colour per light (see music.py)."""
+
+    def __init__(self, audio, channels: list[dict], palette: list[str] | None):
+        from .music import MusicMapper
+        self.audio, self.frames, self._last = audio, 0, -1
+        self.mapper = MusicMapper(channels, palette)
+
+    def step(self, settings: SyncSettings) -> dict[int, tuple]:
+        from .music import MUSIC_LEVELS
+        samples, count = self.audio.latest()
+        if count != self._last:
+            self.frames += 1
+            self._last = count
+        return self.mapper.step(samples, MUSIC_LEVELS.get(settings.intensity, MUSIC_LEVELS["moderate"]),
+                                settings.brightness)
+
+    def preview(self) -> dict:
+        return {"bands": dict(self.mapper.last_levels), "beats": self.mapper.analyser_beats}
+
+
 class SyncEngine:
-    def __init__(self, bridge: Bridge, host: str, client_key: str, area: dict, source):
-        """source: anything with latest() → (HxWx3 uint8 frame | None, frame counter)."""
-        self.bridge, self.host, self.client_key, self.area, self.source = bridge, host, client_key, area, source
-        self.stats = {"sent": 0, "frames": 0, "started": 0.0}
+    def __init__(self, bridge: Bridge, host: str, client_key: str, area: dict, producer):
+        self.bridge, self.host, self.client_key, self.area, self.producer = bridge, host, client_key, area, producer
+        self.stats = {"sent": 0, "started": 0.0}
         self.preview: dict[int, tuple] = {}          # last colours sent, for the UI
 
+    @property
+    def frames(self) -> int:
+        return self.producer.frames
+
     def run(self, settings: SyncSettings) -> None:
-        chans = area_channels(self.area)
-        frame, _ = self.source.latest()
-        h, w = (frame.shape[:2] if frame is not None else (144, 256))
-        mapper = ColourMapper(chans, w, h)
         self.bridge.set_entertainment(self.area["id"], True)
         try:
             with DtlsPskClient(self.host, 2100, identity=self.bridge.app_key.encode(),
                                psk=bytes.fromhex(self.client_key)) as conn:
-                seq, last_count = 0, -1
+                seq = 0
                 period = 1.0 / RATE_HZ
                 nxt = self.stats["started"] = time.monotonic()
                 while not settings.stop.is_set():
-                    frame, count = self.source.latest()
-                    fresh = frame if count != last_count else None
-                    if fresh is not None:
-                        self.stats["frames"] += 1
-                        last_count = count
-                    level = INTENSITIES.get(settings.intensity, INTENSITIES["moderate"])
-                    colours = mapper.step(fresh, level, settings.brightness)
+                    colours = self.producer.step(settings)
                     if colours:
                         conn.send(encode_rgb(self.area["id"], seq, colours))
                         self.preview = colours

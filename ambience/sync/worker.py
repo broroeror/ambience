@@ -3,28 +3,27 @@ nothing the window does (busy, frozen, crashed) can stutter the lights — and t
 handed back from here no matter what.
 
 Protocol over a multiprocessing Pipe (dicts):
-  window → worker   {"cmd": "start", "area": {...}, "host", "app_key", "cert", "client_key",
-                     "intensity", "brightness"}
+  window → worker   {"cmd": "start", "mode": "screen"|"music", "area": {...}, "host",
+                     "app_key", "cert", "client_key", "intensity", "brightness", "palette"?}
                     {"cmd": "set", "intensity"?, "brightness"?}
                     {"cmd": "stop"} · {"cmd": "quit"}
   worker → window   {"state": "starting"|"running"|"stopped"|"error", "message"?}
-                    {"preview": {"colours": {ch: [r,g,b]}, "frame": bytes|None, "w", "h",
-                                 "rate": float, "fps": float}}   ~8×/s while running
+                    {"preview": {"colours": {ch: [r,g,b]}, "rate": float, "fps": float,
+                                 screen: "frame": bytes|None, "w", "h" · music: "bands", "beat"}}
+                    ~8×/s while running
 """
 from __future__ import annotations
 
 import threading
 import time
 
-import numpy as np
 
 
 def run_worker(conn) -> None:
     from ..bridge.client import Bridge
-    from .capture import CaptureError, ScreenCapture
-    from .engine import SyncEngine, SyncSettings
+    from .engine import MusicProducer, ScreenProducer, SyncEngine, SyncSettings, area_channels
 
-    cap: ScreenCapture | None = None
+    cap = None                     # the active capture (screen or audio)
     engine: SyncEngine | None = None
     thread: threading.Thread | None = None
     settings: SyncSettings | None = None
@@ -69,19 +68,28 @@ def run_worker(conn) -> None:
                     settings.brightness = float(msg["brightness"])
             elif cmd == "start" and not thread:
                 conn.send({"state": "starting"})
-                cap = ScreenCapture()
+                chans = area_channels(msg["area"])
                 try:
-                    cap.start()
-                    t0 = time.monotonic()
-                    while cap.latest()[0] is None and time.monotonic() - t0 < 5:
-                        time.sleep(0.05)
-                    if cap.latest()[0] is None:
-                        raise CaptureError(f"no screen frames arrived ({cap.error or 'no error reported'})")
-                except CaptureError as e:
+                    if msg.get("mode") == "music":
+                        from .audio import AudioCapture
+                        cap = AudioCapture()
+                        cap.start()
+                        producer = MusicProducer(cap, chans, msg.get("palette"))
+                    else:
+                        from .capture import ScreenCapture
+                        cap = ScreenCapture()
+                        cap.start()
+                        t0 = time.monotonic()
+                        while cap.latest()[0] is None and time.monotonic() - t0 < 5:
+                            time.sleep(0.05)
+                        if cap.latest()[0] is None:
+                            raise RuntimeError(f"no screen frames arrived ({cap.error or 'no error reported'})")
+                        producer = ScreenProducer(cap, chans)
+                except Exception as e:  # noqa: BLE001 — CaptureError, AudioCaptureError, …
                     stop_all("error", str(e))
                     continue
                 bridge = Bridge(msg["host"], msg["cert"], msg["app_key"])
-                engine = SyncEngine(bridge, msg["host"], msg["client_key"], msg["area"], cap)
+                engine = SyncEngine(bridge, msg["host"], msg["client_key"], msg["area"], producer)
                 settings = SyncSettings(intensity=msg.get("intensity", "moderate"),
                                         brightness=float(msg.get("brightness", 0.85)))
                 settings.error, settings.done = "", False
@@ -98,13 +106,7 @@ def run_worker(conn) -> None:
         now = time.monotonic()
         if thread and engine and now - last_preview > 0.12:
             last_preview = now
-            frame, _ = cap.latest() if cap else (None, 0)
-            small = None
-            if frame is not None:   # 64×36 thumbnail of what the lights sample
-                h, w = frame.shape[:2]
-                small = frame.reshape(36, h // 36, 64, w // 64, 3).mean(axis=(1, 3)).astype(np.uint8).tobytes() \
-                    if h % 36 == 0 and w % 64 == 0 else None
             el = max(1e-6, now - engine.stats["started"]) if engine.stats["started"] else 1.0
             conn.send({"preview": {"colours": {k: list(v) for k, v in engine.preview.items()},
-                                   "frame": small, "w": 64, "h": 36,
-                                   "rate": engine.stats["sent"] / el, "fps": engine.stats["frames"] / el}})
+                                   "rate": engine.stats["sent"] / el, "fps": engine.frames / el,
+                                   **engine.producer.preview()}})
