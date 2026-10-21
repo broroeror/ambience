@@ -102,6 +102,9 @@ class Backend(QObject):
         self._noticeTimer = QTimer(self, singleShot=True, interval=4000)
         self._noticeTimer.timeout.connect(lambda: self._set_notice(""))
         self.bridge: Bridge | None = None
+        from .sync_controller import SyncController, SyncFrameProvider
+        self.sync_provider = SyncFrameProvider()
+        self._sync = SyncController(self, self.sync_provider)
         self._debounce = QTimer(self, singleShot=True, interval=40)  # batch event bursts
         self._debounce.timeout.connect(self._refresh)
         self._stateBumped.connect(self._debounce.start)
@@ -166,6 +169,10 @@ class Backend(QObject):
         if msg:
             self._noticeTimer.start()
         self.changed.emit()
+
+    @Property(QObject, constant=True)
+    def sync(self):
+        return self._sync
 
     @Property(QObject, constant=True)
     def roomsModel(self):

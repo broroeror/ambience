@@ -10,7 +10,7 @@ ApplicationWindow {
     title: "Ambience"
     color: Theme.ground
 
-    property int page: 0          // 0 home, 1 room, 2 scenes
+    property int page: 0          // 0 home, 1 room, 2 scenes, 3 sync
 
     RowLayout {
         anchors.fill: parent
@@ -34,7 +34,7 @@ ApplicationWindow {
                 }
                 Repeater {
                     model: [{ label: "Home", ready: true, page: 0 }, { label: "Scenes", ready: true, page: 2 },
-                            { label: "Sync", ready: false, page: -1 }, { label: "Settings", ready: false, page: -1 }]
+                            { label: "Sync", ready: true, page: 3 }, { label: "Settings", ready: false, page: -1 }]
                     delegate: Button {
                         id: nav
                         required property var modelData
@@ -72,12 +72,13 @@ ApplicationWindow {
 
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: backend.paired ? win.page : 3
+            currentIndex: backend.paired ? win.page : 4
             HomePage {
                 onOpenRoom: (rid) => { backend.openRoom(rid); win.page = 1 }
             }
             RoomPage { onBack: win.page = 0 }
             ScenesPage {}
+            SyncPage {}
             Item {   // not paired yet
                 ColumnLayout {
                     anchors.centerIn: parent; spacing: 10

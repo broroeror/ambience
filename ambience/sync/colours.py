@@ -8,6 +8,7 @@ the intensity level — saturation boost, brightness response, and how fast it f
 """
 from __future__ import annotations
 
+import colorsys
 from dataclasses import dataclass
 
 import numpy as np
@@ -68,14 +69,16 @@ class ColourMapper:
 
 
 def shape(lin_rgb: np.ndarray, level: Intensity, brightness: float) -> tuple[float, float, float]:
-    """Saturation boost + brightness response on one linear colour; returns sRGB 0..1."""
+    """Saturation boost + brightness response on one linear colour; returns sRGB 0..1.
+    The boost scales HSV saturation in gamma-encoded space, so the HUE stays put — boosting
+    in linear light pushed small components to zero and turned orange into red."""
     peak = float(lin_rgb.max())
     if peak <= 1e-6:
         v = level.floor * brightness
         return (v * 0.6, v * 0.5, v * 0.45)                       # a dim warm glow, not black
-    chroma = lin_rgb / peak                                        # hue + saturation at full value
-    grey = chroma.mean()
-    chroma = np.clip(grey + (chroma - grey) * level.saturation, 0, 1)
-    value = max(level.floor, peak ** level.gamma) * brightness
-    srgb = (chroma * value) ** (1 / 2.2)
-    return tuple(float(c) for c in np.clip(srgb, 0, 1))
+    srgb = (lin_rgb / peak) ** (1 / 2.2)                           # hue + saturation at full value
+    h, s, _ = colorsys.rgb_to_hsv(*srgb)
+    r, g, b = colorsys.hsv_to_rgb(h, min(1.0, s * level.saturation), 1.0)
+    value = max(level.floor, peak ** level.gamma) * brightness     # brightness response (linear)
+    scale = value ** (1 / 2.2)
+    return (min(1.0, r * scale), min(1.0, g * scale), min(1.0, b * scale))

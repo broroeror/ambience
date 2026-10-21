@@ -38,10 +38,12 @@ def main() -> int:
     engine = QQmlApplicationEngine()
     engine.addImportPath(str(HERE))
     engine.rootContext().setContextProperty("backend", backend)
+    engine.addImageProvider("sync", backend.sync_provider)
     engine.load(QUrl.fromLocalFile(str(HERE / "qml" / "Main.qml")))
     if not engine.rootObjects():
         return 1
     rc = app.exec()
+    backend.sync.shutdown()   # stop streaming → the lights are handed back before we exit
     del engine          # tear the screens down while `backend` still exists
     backend.state and backend.state.stop()
     return rc
