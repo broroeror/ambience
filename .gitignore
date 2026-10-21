@@ -3,3 +3,5 @@ __pycache__/
 packaging/src/
 packaging/pkg/
 packaging/*.pkg.tar.*
+packaging/ambience-src/
+packaging/*.tar.gz
