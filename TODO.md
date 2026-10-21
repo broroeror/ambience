@@ -1,8 +1,6 @@
 # Ambience — to do
 
 ## Next up
-- [ ] **Pairing inside the app** — first run finds the bridge and walks through the
-      link-button press; no terminal needed.
 - [ ] **Tray icon** — sync keeps running with the window closed; quick start/stop and
       all-lights-off from the tray.
 - [ ] **Packaging** — PKGBUILD, `.desktop` entry and an icon, so Ambience is in the launcher.
@@ -38,3 +36,5 @@
   delete scene, effect scenes, scrolling (hi-res wheels arrive as "touchpads" — decided by
   scroll phase).
 - Milestone 4 — screen sync and music sync in a separate process, Sync page with live preview.
+- Pairing inside the app (first run, or `AMBIENCE_PAIR=1` to re-pair), with a bridge identity
+  check before any pairing request.
