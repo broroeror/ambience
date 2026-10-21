@@ -1,8 +1,8 @@
 # Ambience — to do
 
 ## Next up
-- [ ] **AUR** — licence chosen (MIT); still needs a public GitHub repo and a `v0.1.0` tag first; then an
-      `packaging/aur/PKGBUILD` pointing at the tag's tarball, `.SRCINFO`, and the user pushes.
+- [ ] **AUR push** — `packaging/aur/` is ready (v0.1.0); the user pushes it with their SSH key.
+      For later releases: tag, bump `pkgver`, update `sha256sums`, `makepkg --printsrcinfo > .SRCINFO`.
 
 ## Later — responsiveness (parked 2026-10-21: looks fine by eye; revisit if it ever feels late)
 - [ ] **Measure first:** a "timing test" that flashes the screen and the lights together;
@@ -22,7 +22,6 @@
       instead of sending people to the phone app.
 - [ ] "Save current lights as a scene."
 - [ ] More gallery presets; maybe let people make their own.
-- [ ] Push to a private GitHub repo; decide on a licence before anything goes public.
 
 ## Done
 - Settings page: bridge details + pair again, scroll speed, colour fade length, start with the
