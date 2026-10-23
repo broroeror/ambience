@@ -68,7 +68,7 @@ ApplicationWindow {
                             Label { text: "Hue Bridge"; color: Theme.text; font.weight: Font.Bold; font.pixelSize: 13 }
                         }
                         Label {
-                            text: !backend.paired ? "Not paired" : (backend.connected ? "Live · " : "Reconnecting · ") + backend.bridgeLabel
+                            text: backend.waitingForKeyring ? "Waiting for the keyring…" : !backend.paired ? "Not paired" : (backend.connected ? "Live · " : "Reconnecting · ") + backend.bridgeLabel
                             color: Theme.muted; font.pixelSize: 12
                         }
                     }

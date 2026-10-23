@@ -82,7 +82,7 @@ Flickable {
                 spacing: 10
                 Rectangle { width: 10; height: 10; radius: 5; color: backend.connected ? Theme.ok : Theme.accent }
                 Label { text: page.br.name || "Hue Bridge"; color: Theme.text; font.pixelSize: 18; font.weight: Font.ExtraBold; Layout.fillWidth: true }
-                Label { text: !backend.paired ? "Not paired" : backend.connected ? "Connected" : "Reconnecting…"; color: Theme.muted }
+                Label { text: backend.waitingForKeyring ? "Waiting for the keyring…" : !backend.paired ? "Not paired" : backend.connected ? "Connected" : "Reconnecting…"; color: Theme.muted }
             }
             Fact { label: "Address"; value: page.br.host || "" }
             Fact { label: "Model"; value: page.br.model || "" }

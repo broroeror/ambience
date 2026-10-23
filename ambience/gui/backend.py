@@ -117,13 +117,25 @@ class Backend(QObject):
         self._pairing.paired.connect(self._on_paired)
         # AMBIENCE_PAIR=1 opens the pairing screen even when already paired (re-pair / try it)
         self._pairing_open = bool(os.environ.get("AMBIENCE_PAIR"))
+        # Started at login, the keyring may not be unlocked yet: keep trying instead of
+        # mistaking unreadable keys for "never paired".
+        self._waiting_keys = False
+        self._keyRetry = QTimer(self, interval=3000)
+        self._keyRetry.timeout.connect(self._attach)
         self._attach()
 
     def _attach(self):
         """(Re)connect to the paired bridge: live state, event stream, command queue."""
         got = store.load()
         if not got:
+            self._waiting_keys = store.has_pairing()
+            if self._waiting_keys and not self._keyRetry.isActive():
+                self._keyRetry.start()
+            self.changed.emit()
             return
+        if self._waiting_keys:
+            self._waiting_keys = False
+            self._keyRetry.stop()
         if self.state:
             self.state.stop()
         pairing, app_key, _client_key = got
@@ -139,6 +151,7 @@ class Backend(QObject):
         self.state.subscribe(lambda _ids: self._stateBumped.emit())
         self.state.start()
         self._refresh()
+        self._sync.changed.emit()     # its areas + scene palettes come from this state
 
     def _on_paired(self):
         self._pairing_open = False
@@ -152,7 +165,11 @@ class Backend(QObject):
     @Property(bool, notify=changed)
     def pairingOpen(self):
         """Show the pairing screen: never paired, or asked for (re-pair)."""
-        return self._pairing_open or self.state is None
+        return self._pairing_open or (self.state is None and not self._waiting_keys)
+
+    @Property(bool, notify=changed)
+    def waitingForKeyring(self):
+        return self._waiting_keys
 
     @Slot()
     def openPairing(self):

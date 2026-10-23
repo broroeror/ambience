@@ -31,13 +31,27 @@ def save(p: Pairing, app_key: str, client_key: str) -> None:
     os.replace(tmp, BRIDGE_FILE)
 
 
+def has_pairing() -> bool:
+    """A bridge was paired (its details are on disk), whether or not the keys are readable."""
+    try:
+        Pairing(**json.loads(BRIDGE_FILE.read_text()))
+        return True
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def load() -> tuple[Pairing, str, str] | None:
-    """(pairing, app_key, client_key) or None if not paired / keys missing."""
+    """(pairing, app_key, client_key) or None if not paired / keys unreadable. Right after
+    login the keyring may not be unlocked yet: then has_pairing() is True and a later
+    load() succeeds, so callers should wait rather than ask to pair again."""
     try:
         p = Pairing(**json.loads(BRIDGE_FILE.read_text()))
     except (OSError, ValueError, TypeError):
         return None
-    secret = keyring.get_password(SERVICE, p.bridge_id)
+    try:
+        secret = keyring.get_password(SERVICE, p.bridge_id)
+    except Exception:  # noqa: BLE001 — a locked or not-yet-started keyring raises its own errors
+        return None
     if not secret:
         return None
     k = json.loads(secret)
