@@ -26,4 +26,11 @@ QtObject {
     // Wheel scrolling: pixels per "line"; a notch is the system's lines-per-scroll (Plasma
     // default 3) × this ≈ 100 px. Same for every mouse: wheels report notches, not DPI.
     property real wheelPixelsPerLine: 34
+    // The lights' current colours, left → right (Main.qml binds them; empty = use amber).
+    // Sliders and the music level bars take their colour from here.
+    property var lightColours: []
+    function lightAt(t) {
+        const n = lightColours.length
+        return n ? lightColours[Math.round(Math.max(0, Math.min(1, t)) * (n - 1))] : accent
+    }
 }

@@ -79,13 +79,15 @@ Flickable {
                                         model: [["bass", "Bass"], ["mids", "Mids"], ["highs", "Highs"]]
                                         delegate: Column {
                                             required property var modelData
+                                            required property int index
                                             spacing: 6
                                             Rectangle {
                                                 width: 46; height: 140; radius: 8; color: Theme.well
                                                 Rectangle {
                                                     anchors.bottom: parent.bottom; width: parent.width; radius: 8
                                                     height: Math.max(6, parent.height * (page.sync.bands[modelData[0]] || 0))
-                                                    color: Theme.accent
+                                                    color: Theme.lightAt(index / 2)
+                                                    Behavior on color { ColorAnimation { duration: 120 } }
                                                     Behavior on height { NumberAnimation { duration: 110 } }
                                                 }
                                             }
@@ -95,7 +97,8 @@ Flickable {
                                     Rectangle {   // flashes on every beat
                                         id: beatDot
                                         width: 46; height: 46; radius: 23; y: 47
-                                        color: Theme.accent; opacity: 0.15
+                                        color: Theme.lightAt(0.5); opacity: 0.15
+                                        Behavior on color { ColorAnimation { duration: 120 } }
                                         property int lastBeat: 0
                                         Connections {
                                             target: page.sync

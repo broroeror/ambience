@@ -25,7 +25,8 @@ AUTOSTART = CONFIG / "autostart" / "ambience.desktop"
 LOG_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "ambience"
 
 DEFAULTS = {"fadeMs": 700, "scrollSpeed": 34,
-            "edgeGlow": True, "edgeGlowSyncOnly": False, "edgeGlowStrength": 60, "edgeGlowWidth": 90}
+            "edgeGlow": True, "edgeGlowSyncOnly": False, "edgeGlowStrength": 60, "edgeGlowWidth": 90,
+            "lightAccents": True}
 
 
 class Settings(QObject):
@@ -100,6 +101,15 @@ class Settings(QObject):
     @Slot(int)
     def setEdgeGlowWidth(self, px: int):
         self._set("edgeGlowWidth", max(30, min(240, int(px))))
+
+    @Property(bool, notify=changed)
+    def lightAccents(self):
+        """Colour sliders and the music level bars with the lights' colours."""
+        return bool(self._v["lightAccents"])
+
+    @Slot(bool)
+    def setLightAccents(self, on: bool):
+        self._set("lightAccents", bool(on))
 
     @Slot(str)
     def reset(self, key: str):

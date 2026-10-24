@@ -28,6 +28,8 @@
   precompiled `.qsb`); pulses with sync via a ~30/s colour-only message. Settings: on/off,
   always / only while syncing, strength, width. (Offscreen screenshots need
   `QT_QUICK_BACKEND=rhi QSG_RHI_BACKEND=opengl` — the default software renderer skips shaders.)
+- Light-colour accents: sliders (a gradient of the lights, left → right) and the music level
+  bars + beat dot take the lights' colours; faint lights drop out; amber when all are off.
 - Settings page: bridge details + pair again, scroll speed, colour fade length, start with the
   computer (an autostart entry), version/licence/log folder. Saved in `settings.json`.
 - Packaging: `packaging/PKGBUILD` (local build), `ambience` / `ambience-cli` launchers, desktop

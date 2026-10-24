@@ -24,10 +24,26 @@ Slider {
             GradientStop { position: 0; color: control.trackGradient ? control.trackGradient[0] : "black" }
             GradientStop { position: 1; color: control.trackGradient ? control.trackGradient[1] : "black" }
         }
-        Rectangle {
+        Item {   // the filled part: the lights' colours across the whole track, revealed up to the handle
             visible: !control.trackGradient
-            width: control.visualPosition * parent.width; height: parent.height; radius: 3
-            color: Theme.accent
+            width: control.visualPosition * parent.width; height: parent.height
+            clip: true
+            Rectangle {
+                id: fill
+                width: control.availableWidth; height: parent.height; radius: 3
+                property color a: Theme.lightAt(0)
+                property color b: Theme.lightAt(0.5)
+                property color c: Theme.lightAt(1)
+                Behavior on a { ColorAnimation { duration: Theme.fadeMs } }
+                Behavior on b { ColorAnimation { duration: Theme.fadeMs } }
+                Behavior on c { ColorAnimation { duration: Theme.fadeMs } }
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: fill.a }
+                    GradientStop { position: 0.5; color: fill.b }
+                    GradientStop { position: 1; color: fill.c }
+                }
+            }
         }
     }
     handle: Rectangle {

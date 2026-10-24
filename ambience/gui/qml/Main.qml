@@ -17,6 +17,7 @@ ApplicationWindow {
 
     Binding { target: Theme; property: "fadeMs"; value: backend.settings.fadeMs }
     Binding { target: Theme; property: "wheelPixelsPerLine"; value: backend.settings.scrollSpeed }
+    Binding { target: Theme; property: "lightColours"; value: backend.settings.lightAccents ? backend.sync.accentColours : [] }
 
     RowLayout {
         anchors.fill: parent

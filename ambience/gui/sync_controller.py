@@ -236,6 +236,25 @@ class SyncController(QObject):
                 out.append({"anchor": _edge_anchor(math.sin(a), math.cos(a)), "rgb": list(_resting(l))})
         return out
 
+    @Property("QVariantList", notify=glowChanged)
+    def accentColours(self):
+        """The lights' colours at full strength (a dimmed light still gives a clear colour),
+        ordered left → right as they sit in the room, for sliders and level bars. Dark and
+        faint lights are skipped — below a quarter of the brightest one, so mid-sync only the
+        lights that are actually lit count; near-duplicates collapse. Empty → amber."""
+        lamps = sorted(self.edgeLamps, key=lambda l: (l["anchor"][0], l["anchor"][1]))
+        floor = max(0.03, 0.25 * max((max(l["rgb"]) for l in lamps), default=0))
+        out: list[tuple] = []
+        for l in lamps:
+            r, g, b = l["rgb"]
+            m = max(r, g, b)
+            if m < floor:
+                continue
+            c = (r / m, g / m, b / m)
+            if all(max(abs(a - b) for a, b in zip(c, o)) > 0.12 for o in out):
+                out.append(c)
+        return ["#%02x%02x%02x" % tuple(round(v * 255) for v in c) for c in out]
+
     # --- settings ------------------------------------------------------------------
     @Property(str, notify=changed)
     def intensity(self):

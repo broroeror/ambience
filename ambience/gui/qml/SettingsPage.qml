@@ -123,7 +123,7 @@ Flickable {
         }
 
         Card {
-            title: "EDGE GLOW"
+            title: "LIGHT COLOURS"
             RowLayout {
                 spacing: 16
                 ColumnLayout {
@@ -179,6 +179,23 @@ Flickable {
                     isDefault: page.settings.edgeGlowWidth === page.settings.defaults.edgeGlowWidth
                     onMoved: (v) => page.settings.setEdgeGlowWidth(v)
                     onReset: page.settings.reset("edgeGlowWidth")
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.line }
+            RowLayout {
+                spacing: 16
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Label { text: "Sliders and level bars in your lights’ colours"; color: Theme.text; font.weight: Font.Bold }
+                    Label {
+                        Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.muted; font.pixelSize: 12
+                        text: "Sliders and the music level bars follow your lights instead of amber. With every light off they go back to amber."
+                    }
+                }
+                Toggle {
+                    liveChecked: page.settings.lightAccents
+                    onToggled: page.settings.setLightAccents(checked)
                 }
             }
         }
