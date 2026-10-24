@@ -89,6 +89,11 @@ ApplicationWindow {
         }
     }
 
+    EdgeGlow {      // the lights' colours around the window's edge (Settings → Edge glow)
+        anchors.fill: parent
+        z: 5
+    }
+
     PairingPage {   // first run or re-pair: covers the whole window
         anchors.fill: parent
         visible: backend.pairingOpen

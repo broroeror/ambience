@@ -24,7 +24,8 @@ SETTINGS = CONFIG / "ambience" / "settings.json"
 AUTOSTART = CONFIG / "autostart" / "ambience.desktop"
 LOG_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "ambience"
 
-DEFAULTS = {"fadeMs": 700, "scrollSpeed": 34}
+DEFAULTS = {"fadeMs": 700, "scrollSpeed": 34,
+            "edgeGlow": True, "edgeGlowSyncOnly": False, "edgeGlowStrength": 60, "edgeGlowWidth": 90}
 
 
 class Settings(QObject):
@@ -64,6 +65,41 @@ class Settings(QObject):
     @Slot(int)
     def setScrollSpeed(self, px: int):
         self._set("scrollSpeed", max(10, min(90, int(px))))
+
+    # --- edge glow -----------------------------------------------------------------------
+    @Property(bool, notify=changed)
+    def edgeGlow(self):
+        return bool(self._v["edgeGlow"])
+
+    @Slot(bool)
+    def setEdgeGlow(self, on: bool):
+        self._set("edgeGlow", bool(on))
+
+    @Property(bool, notify=changed)
+    def edgeGlowSyncOnly(self):
+        return bool(self._v["edgeGlowSyncOnly"])
+
+    @Slot(bool)
+    def setEdgeGlowSyncOnly(self, on: bool):
+        self._set("edgeGlowSyncOnly", bool(on))
+
+    @Property(int, notify=changed)
+    def edgeGlowStrength(self):
+        """Percent."""
+        return self._v["edgeGlowStrength"]
+
+    @Slot(int)
+    def setEdgeGlowStrength(self, pct: int):
+        self._set("edgeGlowStrength", max(10, min(100, int(pct))))
+
+    @Property(int, notify=changed)
+    def edgeGlowWidth(self):
+        """How far the glow reaches in from the edge, px."""
+        return self._v["edgeGlowWidth"]
+
+    @Slot(int)
+    def setEdgeGlowWidth(self, px: int):
+        self._set("edgeGlowWidth", max(30, min(240, int(px))))
 
     @Slot(str)
     def reset(self, key: str):

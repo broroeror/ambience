@@ -47,7 +47,7 @@ def run_worker(conn) -> None:
         finally:
             st.done = True
 
-    last_preview = 0.0
+    last_preview = last_glow = 0.0
     while True:
         if conn.poll(0.05):
             try:
@@ -107,6 +107,11 @@ def run_worker(conn) -> None:
             continue
 
         now = time.monotonic()
+        if thread and engine and now - last_glow > 0.03:
+            # Colours only, ~30/s, so the window's edge glow can pulse with the lights;
+            # the heavier preview (screen thumbnail, bands) stays at ~8/s.
+            last_glow = now
+            conn.send({"glow": {k: list(v) for k, v in engine.preview.items()}})
         if thread and engine and now - last_preview > 0.12:
             last_preview = now
             el = max(1e-6, now - engine.stats["started"]) if engine.stats["started"] else 1.0

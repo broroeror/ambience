@@ -4,6 +4,7 @@ light's live colour, and the thumbnail the lights sample — served to QML as im
 from __future__ import annotations
 
 import json
+import math
 import multiprocessing as mp
 import os
 import time
@@ -35,9 +36,33 @@ def _name(r: dict) -> str:
     return (r.get("metadata") or {}).get("name", "?")
 
 
+
+def _edge_anchor(x: float, y: float) -> list[float]:
+    """A top-down position (x left→right, y back→front, -1..1) pushed out onto the window's
+    edge, as 0..1 coordinates with the front at the top."""
+    dx, dy = x / 2, -y / 2
+    m = max(abs(dx), abs(dy))
+    if m < 1e-3:
+        return [0.5, 0.0]
+    t = 0.5 / m
+    return [0.5 + dx * t, 0.5 + dy * t]
+
+
+def _resting(light: dict | None) -> tuple[float, float, float] | None:
+    """A light's current colour, 0..1, scaled by brightness; dark when off."""
+    if not light:
+        return None
+    if not light.get("on", {}).get("on"):
+        return (0.0, 0.0, 0.0)
+    from ..colour import light_hex
+    h = light_hex(light)
+    level = 0.45 + 0.55 * (light.get("dimming") or {}).get("brightness", 100) / 100
+    return tuple(int(h[i:i + 2], 16) / 255 * level for i in (1, 3, 5))
+
 class SyncController(QObject):
     changed = Signal()
     previewChanged = Signal()
+    glowChanged = Signal()       # the edge glow's colours: ~30/s while syncing
 
     def __init__(self, backend, provider: SyncFrameProvider):
         super().__init__(backend)
@@ -59,7 +84,8 @@ class SyncController(QObject):
         self._beat_count = 0
         self._intensity = saved.get("intensity", "moderate")
         self._brightness = float(saved.get("brightness", 0.85))
-        self._poll = QTimer(self, interval=60)
+        self._poll = QTimer(self, interval=16)
+        backend.changed.connect(self.glowChanged)   # resting light colours
         self._poll.timeout.connect(self._drain)
 
     def _save(self):
@@ -167,6 +193,47 @@ class SyncController(QObject):
                 if dx * dx + dy * dy < 0.2 ** 2:
                     a_["y"] = max(-1.0, min(1.0, b_["y"] - 0.22 if b_["y"] > -0.7 else b_["y"] + 0.22))
                     a_["x"] = max(-1.0, min(1.0, a_["x"] + (0.12 if a_["x"] < 0.8 else -0.12)))
+        return out
+
+    # --- edge glow -------------------------------------------------------------------
+    @Property(bool, notify=changed)
+    def syncing(self):
+        return self._state == "running"
+
+    @Property("QVariantList", notify=glowChanged)
+    def edgeLamps(self):
+        """Up to 8 lights for the window's edge glow: an anchor on the window's edge (where
+        the light sits in the area, front = top, as on the Sync page's map) and a colour
+        0..1 at its brightness. While syncing: the streamed colours. Otherwise: the lights'
+        current colours from the bridge (off = dark)."""
+        st = self.backend.state
+        area = self._area()
+        out = []
+        if area and st:
+            by_ent = {}                                   # entertainment service → light
+            for d in st.of("device"):
+                svcs = d.get("services", [])
+                light = next((s["rid"] for s in svcs if s.get("rtype") == "light"), None)
+                for s in svcs:
+                    if s.get("rtype") == "entertainment" and light:
+                        by_ent[s["rid"]] = light
+            for c in area.get("channels", [])[:8]:
+                p = c.get("position", {})
+                if self._state == "running":
+                    rgb = self._colours.get(c["channel_id"])
+                    if rgb is None:
+                        continue
+                else:
+                    lid = next((by_ent.get(m.get("service", {}).get("rid")) for m in c.get("members", [])), None)
+                    rgb = _resting(st.get(lid)) if lid else None
+                    if rgb is None:
+                        continue
+                out.append({"anchor": _edge_anchor(p.get("x", 0.0), p.get("y", 0.0)), "rgb": list(rgb)})
+        elif st:                                          # no area: every light, spread around
+            lights = sorted(st.of("light"), key=_name)[:8]
+            for i, l in enumerate(lights):
+                a = 2 * math.pi * i / max(1, len(lights))
+                out.append({"anchor": _edge_anchor(math.sin(a), math.cos(a)), "rgb": list(_resting(l))})
         return out
 
     # --- settings ------------------------------------------------------------------
@@ -306,7 +373,11 @@ class SyncController(QObject):
                 if self._state != "running":
                     self._colours = {}
                     got_preview = True
+                self.glowChanged.emit()
                 self.changed.emit()
+            elif "glow" in msg:
+                self._colours = {int(k): v for k, v in msg["glow"].items()}
+                self.glowChanged.emit()
             elif "preview" in msg:
                 p = msg["preview"]
                 self._colours = {int(k): v for k, v in p["colours"].items()}

@@ -5,7 +5,7 @@
 # `source` at the public repository and pin a tag.
 pkgname=ambience
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Unofficial Philips Hue app: rooms, scenes and screen/music sync (not affiliated with Signify)"
 arch=('any')
 license=('MIT')
@@ -21,7 +21,7 @@ sha256sums=('SKIP')
 
 package() {
   cd "$pkgname-src"
-  find ambience -type f \( -name '*.py' -o -name '*.qml' -o -name 'qmldir' -o -name '*.svg' \
+  find ambience -type f \( -name '*.py' -o -name '*.qml' -o -name 'qmldir' -o -name '*.svg' -o -name '*.qsb' \
        -o -name '*.ttf' -o -name 'OFL.txt' \) -exec install -Dm644 '{}' "$pkgdir/usr/lib/ambience/{}" \;
   python -m compileall -q -d /usr/lib/ambience "$pkgdir/usr/lib/ambience"
 

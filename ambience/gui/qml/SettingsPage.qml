@@ -123,6 +123,67 @@ Flickable {
         }
 
         Card {
+            title: "EDGE GLOW"
+            RowLayout {
+                spacing: 16
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Label { text: "Glow around the window"; color: Theme.text; font.weight: Font.Bold }
+                    Label {
+                        Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.muted; font.pixelSize: 12
+                        text: "The window’s edge takes on your lights’ colours, each light on the side where it sits in the room. While syncing it pulses along with them."
+                    }
+                }
+                Toggle {
+                    liveChecked: page.settings.edgeGlow
+                    onToggled: page.settings.setEdgeGlow(checked)
+                }
+            }
+            ColumnLayout {
+                visible: page.settings.edgeGlow
+                Layout.fillWidth: true
+                spacing: 18
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 16
+                    Label { text: "Show"; color: Theme.text; font.weight: Font.Bold; Layout.fillWidth: true }
+                    Repeater {
+                        model: [[false, "Always"], [true, "Only while syncing"]]
+                        delegate: Button {
+                            required property var modelData
+                            implicitHeight: 40
+                            readonly property bool on: page.settings.edgeGlowSyncOnly === modelData[0]
+                            onClicked: page.settings.setEdgeGlowSyncOnly(modelData[0])
+                            contentItem: Label { text: modelData[1]; color: parent.on ? Theme.text : Theme.mutedNav; font.weight: parent.on ? Font.ExtraBold : Font.Bold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; leftPadding: 14; rightPadding: 14 }
+                            background: Rectangle { radius: 9; color: parent.on ? Theme.lineStrong : Theme.well }
+                        }
+                    }
+                }
+                Tuning {
+                    label: "Strength"
+                    valueText: page.settings.edgeGlowStrength + "%"
+                    hint: "How bright the glow is at the very edge."
+                    from: 10; to: 100
+                    live: page.settings.edgeGlowStrength
+                    isDefault: page.settings.edgeGlowStrength === page.settings.defaults.edgeGlowStrength
+                    onMoved: (v) => page.settings.setEdgeGlowStrength(v)
+                    onReset: page.settings.reset("edgeGlowStrength")
+                }
+                Tuning {
+                    label: "Width"
+                    valueText: page.settings.edgeGlowWidth + " px"
+                    hint: "How far the glow reaches in from the edge."
+                    from: 30; to: 240
+                    live: page.settings.edgeGlowWidth
+                    isDefault: page.settings.edgeGlowWidth === page.settings.defaults.edgeGlowWidth
+                    onMoved: (v) => page.settings.setEdgeGlowWidth(v)
+                    onReset: page.settings.reset("edgeGlowWidth")
+                }
+            }
+        }
+
+        Card {
             title: "STARTUP"
             RowLayout {
                 spacing: 16

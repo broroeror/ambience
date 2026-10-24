@@ -15,3 +15,4 @@ SideScroll 1.0 SideScroll.qml
 SyncPage 1.0 SyncPage.qml
 PairingPage 1.0 PairingPage.qml
 SettingsPage 1.0 SettingsPage.qml
+EdgeGlow 1.0 EdgeGlow.qml
